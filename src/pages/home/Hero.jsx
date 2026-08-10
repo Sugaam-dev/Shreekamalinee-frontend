@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -55,6 +55,35 @@ export default function Hero() {
     setCurrent(index);
   };
 
+  // Manual drag/swipe support
+  const pointerStart = useRef(null);
+  const isDragging = useRef(false);
+
+  const handlePointerDown = useCallback((e) => {
+    pointerStart.current = e.clientX;
+    isDragging.current = true;
+  }, []);
+
+  const handlePointerUp = useCallback((e) => {
+    if (!isDragging.current || pointerStart.current === null) return;
+    isDragging.current = false;
+    const diff = e.clientX - pointerStart.current;
+    const swipeThreshold = 50;
+    if (diff < -swipeThreshold) {
+      setDirection(1);
+      setCurrent((prev) => (prev + 1) % slides.length);
+    } else if (diff > swipeThreshold) {
+      setDirection(-1);
+      setCurrent((prev) => (prev - 1 + slides.length) % slides.length);
+    }
+    pointerStart.current = null;
+  }, [slides.length]);
+
+  const handlePointerCancel = useCallback(() => {
+    isDragging.current = false;
+    pointerStart.current = null;
+  }, []);
+
   // Variants for horizontal sliding animations
   const slideVariants = {
     enter: (dir) => ({
@@ -72,7 +101,13 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative h-[calc(100vh-110px)] w-full overflow-hidden bg-charcoal">
+    <section
+      className="relative h-[calc(100vh-110px)] w-full overflow-hidden bg-charcoal"
+      style={{ userSelect: "none", touchAction: "pan-y" }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+    >
       <AnimatePresence initial={false} custom={direction}>
         <motion.div
           key={current}
