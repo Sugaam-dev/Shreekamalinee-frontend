@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { MessageCircle, Mail, Send } from "lucide-react";
 import { useCart } from "../../context/CartContext.jsx";
+import useSEO from "../../hooks/useSEO.js";
 
 export default function ContactPage() {
   const { showToast } = useCart();
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+
+  useSEO({
+    title: "Contact Us",
+    description: "Get in touch with Shreekamalinee. Schedule a custom made-to-measure stylist consultation, or contact us about orders, custom Paithani sarees, and heritage accessories."
+  });
 
   function handleSubmit(e) {
     e.preventDefault();

@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Minus, Heart } from "lucide-react";
 import { useCart } from "../../context/CartContext.jsx";
 import { PRODUCTS } from "../../data/products/products.js";
 import ProductCard from "../../components/cards/ProductCard.jsx";
+import useSEO from "../../hooks/useSEO.js";
 
 export default function ProductDetailsPage() {
   const { id } = useParams();
@@ -25,6 +26,39 @@ export default function ProductDetailsPage() {
       setSelectedSize(product.defaultSize || "");
     }
   }, [product]);
+
+  useSEO({
+    title: product ? `${product.name} - ${product.cat}` : "Product Details",
+    description: product 
+      ? `Buy ${product.name} in category ${product.cat}. ${product.aboutThisItem ? product.aboutThisItem.join(' ') : "Premium quality traditional attire at Shreekamalinee."}`
+      : "View premium handcrafted heritage fashion items at Shreekamalinee.",
+    image: product ? product.image : "/shreekamalineeLogo.png",
+    schema: product ? {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": product.name,
+      "image": [
+        product.image,
+        ...(product.images || [])
+      ],
+      "description": product.aboutThisItem ? product.aboutThisItem.join(' ') : product.name,
+      "sku": `SK-${product.id}`,
+      "mpn": `MPN-${product.id}`,
+      "offers": {
+        "@type": "Offer",
+        "url": window.location.href,
+        "priceCurrency": "INR",
+        "price": product.price,
+        "priceValidUntil": "2027-12-31",
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": product.isSoldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+        "seller": {
+          "@type": "Organization",
+          "name": "Shreekamalinee"
+        }
+      }
+    } : null
+  });
 
   if (!product) {
     return (

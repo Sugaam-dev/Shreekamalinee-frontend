@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { Search, X, SlidersHorizontal } from "lucide-react";
 import { PRODUCTS, COLLECTION_CATEGORIES } from "../../data/products/products.js";
 import ProductCard from "../../components/cards/ProductCard.jsx";
+import useSEO from "../../hooks/useSEO.js";
 
 export default function Shop() {
   const [searchParams] = useSearchParams();
@@ -37,6 +38,19 @@ export default function Shop() {
     setStockFilter("All");
     setSort("featured");
   }, [searchParams]);
+
+  useSEO({
+    title: selectedSubcat !== "All"
+      ? `${selectedSubcat} (${selectedCategory})`
+      : selectedCategory !== "All"
+      ? `${selectedCategory} Collection`
+      : "Shop Indian Heritage Collection",
+    description: selectedSubcat !== "All"
+      ? `Explore handcrafted ${selectedSubcat} in our ${selectedCategory} category. Authentically sourced from traditional Indian weavers.`
+      : selectedCategory !== "All"
+      ? `Discover premium hand-woven ${selectedCategory} at Shreekamalinee. Handloom heritage textiles tailor-made for elegant occasions.`
+      : "Browse the full collection of Shreekamalinee heritage sarees, unstitched suit materials, and handcrafted lifestyle accessories."
+  });
 
   // Core categories for navigation and sidebar filtering
   const mainCategories = ["All", "Sarees", "Dress Material", "Readymade", "Accessories"];
@@ -298,9 +312,9 @@ export default function Shop() {
           <span className="block text-xs tracking-[0.2em] uppercase text-rust mb-2 font-semibold">
             {pageSubLabel}
           </span>
-          <h2 className="font-serif font-medium text-3xl md:text-5xl text-charcoal">
+          <h1 className="font-serif font-medium text-3xl md:text-5xl text-charcoal">
             {selectedSubcat !== "All" ? selectedSubcat : selectedCategory !== "All" ? selectedCategory : "Loved This Season"}
-          </h2>
+          </h1>
           <div className="w-12 h-0.5 bg-rust mt-4" />
         </div>
 

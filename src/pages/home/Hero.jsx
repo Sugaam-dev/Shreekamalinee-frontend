@@ -126,6 +126,7 @@ export default function Hero() {
           <motion.img
             src={slides[current].image}
             alt={slides[current].title}
+            fetchPriority="high"
             initial={{ scale: 1.0 }}
             animate={{ scale: 1.03 }}
             transition={{ duration: 5500, ease: "easeOut" }}

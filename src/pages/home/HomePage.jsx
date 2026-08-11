@@ -8,9 +8,28 @@ import Story from "./Story.jsx";
 import ProductCard from "../../components/cards/ProductCard.jsx";
 import SubcategoryCard from "../../components/cards/SubcategoryCard.jsx";
 import { PRODUCTS, COLLECTION_CATEGORIES } from "../../data/products/products.js";
+import useSEO from "../../hooks/useSEO.js";
 
 export default function HomePage() {
   const featuredProducts = PRODUCTS.filter((p) => p.tag === "Bestseller" || p.tag === "New" || p.tag === "Premium").slice(0, 8);
+
+  useSEO({
+    title: "Home",
+    description: "Discover curated hand-woven sarees, royal Kundan jewellery, and designer unstitched dress materials custom-tailored for royal elegance at Shreekamalinee.",
+    schema: {
+      "@context": "https://schema.org",
+      "@type": "Store",
+      "name": "Shreekamalinee",
+      "image": "https://shreekamalinee.com/shreekamalineeLogo.png",
+      "@id": "https://shreekamalinee.com/#organization",
+      "url": "https://shreekamalinee.com",
+      "priceRange": "₹₹",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "IN"
+      }
+    }
+  });
 
   const reviews = [
     {
@@ -49,6 +68,7 @@ export default function HomePage() {
 
   return (
     <div>
+      <h1 className="sr-only">Shreekamalinee | Elegant Indian Heritage Sarees, Jewellery & Accessories</h1>
       <Hero />
       <Marquee />
       <Categories />

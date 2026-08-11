@@ -15,6 +15,7 @@ export default function SubcategoryCard({ catName, subcatName, image, isSoldOut 
         <img
           src={image}
           alt={subcatName}
+          loading="lazy"
           className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
             isSoldOut ? "opacity-80 grayscale-[25%]" : ""
           }`}

@@ -1,7 +1,12 @@
 import { motion } from "motion/react";
+import useSEO from "../../hooks/useSEO.js";
 
 
 export default function AboutPage() {
+  useSEO({
+    title: "About Our Heritage",
+    description: "Learn about the heritage and legacy of Shreekamalinee. We design premium handcrafted Indian sarees, unstitched suit materials, and heritage accessories."
+  });
 
 
   return (

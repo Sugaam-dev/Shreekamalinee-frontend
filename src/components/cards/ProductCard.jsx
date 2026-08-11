@@ -41,6 +41,7 @@ export default function ProductCard({ product }) {
           <img
             src={product.image}
             alt={product.name}
+            loading="lazy"
             className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.07] ${
               product.isSoldOut ? "opacity-80 grayscale-[25%]" : ""
             }`}
