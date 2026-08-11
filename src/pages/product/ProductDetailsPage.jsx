@@ -326,10 +326,10 @@ export default function ProductDetailsPage() {
             </p>
           </div>
           <div>
-            <h4 className="font-serif text-[18px] font-semibold mb-3">Custom Fit & Stylist Assistance</h4>
+            <h4 className="font-serif text-[18px] font-semibold mb-3">Sizing & Stylist Assistance</h4>
             <p className="text-[13.5px] leading-relaxed text-charcoal/60">
-              Our bespoke tailoring services ensure your outfit matches your unique proportions perfectly. 
-              Contact us on WhatsApp for complimentary custom sizing advice.
+              Have questions about fabric care, fits, or styling? 
+              Contact us on WhatsApp for complimentary assistance and general inquiries.
             </p>
           </div>
           <div>

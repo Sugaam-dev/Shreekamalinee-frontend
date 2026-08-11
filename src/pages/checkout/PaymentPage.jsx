@@ -94,7 +94,7 @@ Status: *${paymentStatus}*${utrNumber ? `\nUTR/Transaction ID: \`${utrNumber.tri
 Thank you for shopping with Shreekamalinee!`;
 
     const encodedText = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/9820001138?text=${encodedText}`;
+    const whatsappUrl = `https://wa.me/9820785210?text=${encodedText}`;
     
     showToast("Redirecting to WhatsApp to complete order...");
     window.open(whatsappUrl, "_blank");
@@ -144,7 +144,7 @@ Thank you for shopping with Shreekamalinee!`;
             <div className="bg-cream-2/40 p-6 border border-line rounded-sm flex justify-between items-center">
               <div>
                 <h3 className="font-serif text-lg font-bold text-charcoal">Order Amount to Pay</h3>
-                <span className="text-xs text-charcoal/50">Includes all applicable customizations</span>
+                <span className="text-xs text-charcoal/50">Includes all applicable taxes</span>
               </div>
               <span className="text-2xl font-bold text-rust">
                 ₹{totalAmount.toLocaleString("en-IN")}

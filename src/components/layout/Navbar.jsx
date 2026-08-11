@@ -56,7 +56,7 @@ export default function Navbar() {
     <>
     {Flashsale &&
       <div className="bg-charcoal text-cream/95 text-[11.5px] tracking-[0.15em] uppercase text-center py-2.5 px-2 font-medium">
-        ✨ Festive Edit Live — Customize Any Outfit — Free Shipping over ₹1,499 ✨
+        ✨ Festive Edit Live — Premium Handloom Collections — Free Shipping over ₹1,499 ✨
       </div>
 }
 

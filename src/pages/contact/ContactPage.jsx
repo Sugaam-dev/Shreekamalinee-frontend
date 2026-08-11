@@ -9,7 +9,7 @@ export default function ContactPage() {
 
   useSEO({
     title: "Contact Us",
-    description: "Get in touch with Shreekamalinee. Schedule a custom made-to-measure stylist consultation, or contact us about orders, custom Paithani sarees, and heritage accessories."
+    description: "Get in touch with Shreekamalinee. Contact us about orders, product details, sizing help, and other inquiries."
   });
 
   function handleSubmit(e) {
@@ -25,7 +25,7 @@ export default function ContactPage() {
         {/* Header Title */}
         <div className="text-center max-w-xl mx-auto mb-16 md:mb-24">
           <span className="text-[11px] tracking-[0.25em] uppercase text-rust font-semibold block mb-3">
-            Contact & Consultation
+            Contact & Inquiries
           </span>
           <h1 className="font-serif text-4xl md:text-6xl font-semibold leading-tight text-charcoal">
             Get in Touch
@@ -46,12 +46,12 @@ export default function ContactPage() {
                 <div>
                   <h4 className="font-serif text-base font-bold text-charcoal">WhatsApp Direct</h4>
                   <a
-                    href="https://wa.me/9820001138?text=Hello%20Shreekamalinee,%20I%20would%20like%20to%20schedule%20a%20made-to-measure%20stylist%20consultation."
+                    href="https://wa.me/9820785210?text=Hello%20Shreekamalinee,%20I%20would%20like%20to%20inquire%20about%20your%20handloom%20sarees%20and%20heritage%20products."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-rust font-semibold hover:underline"
                   >
-                    +91 98200 01138
+                    +91 9820785210
                   </a>
                 </div>
               </div>

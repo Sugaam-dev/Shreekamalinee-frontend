@@ -15,7 +15,7 @@ export default function HomePage() {
 
   useSEO({
     title: "Home",
-    description: "Discover curated hand-woven sarees, royal Kundan jewellery, and designer unstitched dress materials custom-tailored for royal elegance at Shreekamalinee.",
+    description: "Discover curated hand-woven sarees, royal Kundan jewellery, and designer unstitched dress materials crafted for royal elegance at Shreekamalinee.",
     schema: {
       "@context": "https://schema.org",
       "@type": "Store",
@@ -34,7 +34,7 @@ export default function HomePage() {
   const reviews = [
     {
       name: "Ananya Sharma",
-      quote: "The slub silk saree is drop-dead gorgeous. The custom tailoring fit perfectly. Shreekamalinee has a client for life!",
+      quote: "The slub silk saree is drop-dead gorgeous. The premium handloom weave fits and drapes perfectly. Shreekamalinee has a client for life!",
       avatar: "https://images.unsplash.com/photo-1594744803329-e58b31de215f?auto=format&fit=crop&w=150&h=150&q=80",
       item: "Meera Slub Silk Saree"
     },
@@ -46,7 +46,7 @@ export default function HomePage() {
     },
     {
       name: "Sneha Reddy",
-      quote: "Excellent direct communication on WhatsApp for custom fittings. The clutch bag matches my festive outfit flawlessly.",
+      quote: "Excellent direct communication on WhatsApp for sizing queries. The clutch bag matches my festive outfit flawlessly.",
       avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&h=150&q=80",
       item: "Embroidered Potli Bag"
     }
@@ -82,7 +82,7 @@ export default function HomePage() {
                  Curated Collection
                </span>
                <h2 className="font-serif font-medium text-3xl md:text-5xl text-charcoal mb-2">Loved This Season</h2>
-               <p className="text-sm text-charcoal/50 font-normal">Hand-woven sarees, royal kundan jewellery, and custom heritage accessories.</p>
+               <p className="text-sm text-charcoal/50 font-normal">Hand-woven sarees, royal kundan jewellery, and premium heritage accessories.</p>
              </div>
              <Link
                to="/product"
