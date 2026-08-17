@@ -1,7 +1,7 @@
 import { FaInstagram, FaFacebookF } from "react-icons/fa6";
 import { Link } from "react-router-dom";
 import { CiYoutube } from "react-icons/ci";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 
 export default function Footer() {
   const collectionLinks = [
@@ -41,10 +41,7 @@ export default function Footer() {
                 <MapPin size={15} className="text-rust shrink-0" />
                 <span>Maharashtra, India</span>
               </div>
-              <div className="flex items-center gap-2.5">
-                <Phone size={15} className="text-rust shrink-0" />
-                <span>+91 98765 43210</span>
-              </div>
+
               <div className="flex items-center gap-2.5">
                 <Mail size={15} className="text-rust shrink-0" />
                 <span>support@shreekamalinee.com</span>
