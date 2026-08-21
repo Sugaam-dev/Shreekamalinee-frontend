@@ -2,7 +2,7 @@ import ikatDressImg from "../../assets/images/categories/dress-material/ikat/ika
 import jamdaniDressImg from "../../assets/images/categories/dress-material/jamdani/jamdani_dress_material.jpg";
 import kotaDoriyaDressImg from "../../assets/images/categories/dress-material/kota-doriya/kota_doriya_dress_material.jpg";
 import maheshwariDressImg from "../../assets/images/categories/dress-material/maheshwari/maheshwari_dress_material.jpg";
-import narayanPethDressImg from "../../assets/images/categories/dress-material/narayan-peth/narayan_peth_dress_material.jpg";
+import narayanPethDressImg from "../../assets/images/categories/dress-material/narayan-peth/narayan-1.jpg";
 
 const ikatFiles = [
   "1db53742-71a2-4ea1-afad-85a05201be3a.jpeg", "234e02d1-76cf-4098-8199-a2ab9dd474d4.jpeg",
@@ -110,20 +110,28 @@ export const MAHESHWARI_DRESS_MATERIAL = Array.from({ length: 4 }, (_, i) => ({
   aboutThisItem: ["Regal Maheshwari zari border dress material."]
 }));
 
-export const NARAYAN_PETH_DRESS_MATERIAL = Array.from({ length: 5 }, (_, i) => ({
+const narayanPethFiles = [
+  "narayan -2.jpeg", "narayan -3.jpeg", "narayan -5.jpeg", "narayan -6.jpeg",
+  "narayan -7.jpeg", "narayan -8.jpeg", "narayan -9.jpeg", "narayan -10.jpeg",
+  "narayan -11.jpeg", "narayan -12.jpeg", "narayan -13.jpeg", "narayan -14.jpeg",
+  "narayan -15.jpeg", "narayan -16.jpeg", "narayan -17.jpeg", "narayan -18.jpeg",
+  "narayan -19.jpeg", "narayan -20.jpeg", "narayan -21.jpeg", "narayan -22.jpeg",
+];
+
+export const NARAYAN_PETH_DRESS_MATERIAL = Array.from({ length: 21 }, (_, i) => ({
   id: 256 + i,
-  name: `Traditional Narayan Peth Border Suit - Style ${i + 1}`,
+  name: i === 0 ? "Narayan Peth Handwoven Cotton Suit" : `Traditional Narayan Peth Border Suit - Style ${i + 1}`,
   cat: "Dress Material",
   subcat: "Narayan Peth",
   season: "Festive",
   price: 2000 + i * 120,
   mrp: Math.round((2000 + i * 120) * 1.25 / 100) * 100,
   type: "dressmaterial",
-  tag: null,
-  image: narayanPethDressImg,
-  images: [narayanPethDressImg],
+  tag: i === 0 ? "Bestseller" : null,
+  image: i === 0 ? narayanPethDressImg : `/assets/images/categories/dress-material/narayan-peth/${narayanPethFiles[i - 1]}`,
+  images: [i === 0 ? narayanPethDressImg : `/assets/images/categories/dress-material/narayan-peth/${narayanPethFiles[i - 1]}`],
   colors: ["#2c3e50", "#bd5b34"],
-  isSoldOut: true,
+  isSoldOut: false,
   highlights: { "Material composition": "Narayan Peth Cotton", "Care instructions": "Dry Clean", "Country of Origin": "India" },
   aboutThisItem: ["Classic Narayan Peth zari border suit material."]
 }));

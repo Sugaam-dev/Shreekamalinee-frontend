@@ -154,7 +154,7 @@ export default function Navbar() {
                                     category.name
                                   )}&subcat=${encodeURIComponent(sub)}`}
                                   onClick={() => setDesktopOpen(false)}
-                                  className="text-[13px] text-charcoal/70 hover:text-rust hover:translate-x-1.5 transition-all duration-200 block normal-case font-normal py-0.5"
+                                  className="text-[12px] font-normal tracking-[0.14em] uppercase text-charcoal/70 hover:text-rust hover:translate-x-1.5 transition-all duration-200 block normal-case py-0.5"
                                 >
                                   {sub}
                                 </Link>
