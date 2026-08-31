@@ -1,15 +1,168 @@
-import { useState } from "react";
-import { Landmark, Copy, Upload, ArrowLeft, ShoppingBag } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import {
+  Landmark,
+  Copy,
+  Upload,
+  ArrowLeft,
+  ShoppingBag,
+  CheckCircle,
+  QrCode,
+  ShieldCheck,
+  FileText,
+  X,
+  Check,
+  Smartphone,
+  User,
+} from "lucide-react";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 import { useCart } from "../../context/CartContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { formatCurrency } from "../../utils/formatters.js";
+import {
+  useBankDetailsQuery,
+  useSubmitManualPaymentMutation,
+  useUserOrderDetailQuery,
+} from "../../queries/useOrderQueries.js";
+import Breadcrumb from "../../components/common/Breadcrumb.jsx";
 
 export default function PaymentPage({ onComplete }) {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const orderId = searchParams.get("orderId");
+
   const { cart, clearCart, showToast } = useCart();
-  const [form, setForm] = useState({ name: "", phone: "", address: "", utr: "", file: null });
+  const { user, isAuthenticated } = useAuth();
+
+  const { data: bankDetails } = useBankDetailsQuery();
+  const { data: orderDetails, isLoading: isOrderLoading } = useUserOrderDetailQuery(orderId);
+  const submitManualPaymentMutation = useSubmitManualPaymentMutation();
+
+  const [copiedUpi, setCopiedUpi] = useState(false);
+  const [copiedBank, setCopiedBank] = useState(false);
+
+  // Form State
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    utr: "",
+    file: null,
+  });
+
+  const [filePreview, setFilePreview] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const totalAmount = cart.reduce((s, item) => s + item.price * item.qty, 0);
+  // Accurately resolve and prefill customer info from order or user session
+  useEffect(() => {
+    const rawPhone =
+      orderDetails?.shippingAddress?.phoneNumber ||
+      orderDetails?.shippingAddress?.phone ||
+      user?.phoneNumber ||
+      user?.phone ||
+      "";
 
-  function validateForm(isPrepaid) {
+    let formattedPhone = rawPhone.trim();
+    if (formattedPhone && !formattedPhone.startsWith("+")) {
+      formattedPhone = formattedPhone.length === 10 ? `+91${formattedPhone}` : `+91${formattedPhone}`;
+    }
+
+    const resolvedName =
+      orderDetails?.shippingAddress?.fullName ||
+      orderDetails?.shippingAddress?.name ||
+      user?.fullName ||
+      `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
+      user?.name ||
+      "";
+
+    const resolvedAddress = orderDetails?.shippingAddress
+      ? `${orderDetails.shippingAddress.addressLine1 || ""}${
+          orderDetails.shippingAddress.addressLine2 ? `, ${orderDetails.shippingAddress.addressLine2}` : ""
+        }, ${orderDetails.shippingAddress.city || ""}, ${orderDetails.shippingAddress.state || ""} - ${
+          orderDetails.shippingAddress.postalCode || ""
+        }`
+      : "";
+
+    setForm((prev) => ({
+      ...prev,
+      name: resolvedName || prev.name,
+      phone: formattedPhone || prev.phone,
+      address: resolvedAddress || prev.address,
+    }));
+  }, [orderDetails, user]);
+
+  // Clean up object URL on file change / unmount
+  useEffect(() => {
+    return () => {
+      if (filePreview && typeof filePreview === "string" && filePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(filePreview);
+      }
+    };
+  }, [filePreview]);
+
+  const totalAmount = useMemo(() => {
+    return (
+      orderDetails?.totalAmount ??
+      orderDetails?.grandTotal ??
+      cart.reduce((s, item) => s + (Number(item.price) || 0) * (item.qty || 1), 0)
+    );
+  }, [orderDetails, cart]);
+
+  const activeBank = {
+    bankName: bankDetails?.bankName || "HDFC Bank Limited",
+    accountName: bankDetails?.accountHolderName || "Shreekamalinee Studio",
+    accountNumber: bankDetails?.accountNumber || "50200067382109",
+    ifscCode: bankDetails?.ifscCode || "HDFC0000003",
+    branchName: bankDetails?.branchName || "Connaught Place, New Delhi",
+    upiId: bankDetails?.upiId || "shreekamalinee@upi",
+    qrCodeUrl: bankDetails?.qrCodeUrl || null,
+  };
+
+  const handleFileSelect = (selectedFile) => {
+    if (!selectedFile) return;
+
+    // Validate size (max 10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, file: "File size exceeds 10MB limit." }));
+      showToast("File is too large. Maximum size is 10MB.", "warning");
+      return;
+    }
+
+    // Validate type
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"];
+    if (!validTypes.includes(selectedFile.type)) {
+      setErrors((prev) => ({ ...prev, file: "Please upload an image (JPG, PNG, WebP) or PDF slip." }));
+      showToast("Unsupported file format.", "warning");
+      return;
+    }
+
+    setErrors((prev) => ({ ...prev, file: null }));
+    setForm((prev) => ({ ...prev, file: selectedFile }));
+
+    if (selectedFile.type.startsWith("image/")) {
+      const previewUrl = URL.createObjectURL(selectedFile);
+      setFilePreview(previewUrl);
+    } else {
+      setFilePreview("pdf");
+    }
+  };
+
+  const handleRemoveFile = () => {
+    if (filePreview && typeof filePreview === "string" && filePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(filePreview);
+    }
+    setForm((prev) => ({ ...prev, file: null }));
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  function validateForm(isPrepaid = true) {
     const errs = {};
     const name = form.name.trim();
     if (!name) {
@@ -18,32 +171,27 @@ export default function PaymentPage({ onComplete }) {
       errs.name = "Full Name must be at least 2 characters long.";
     }
 
-    const phone = form.phone.trim().replace(/\D/g, "");
-    if (!phone) {
-      errs.phone = "Phone number is required.";
-    } else {
-      const phoneRegex = /^[6-9]\d{9}$/;
-      if (!phoneRegex.test(phone)) {
-        errs.phone = "Enter a valid 10-digit mobile number.";
-      }
-    }
-
-    const address = form.address.trim();
-    if (!address) {
-      errs.address = "Delivery address is required.";
-    } else if (address.length < 10) {
-      errs.address = "Please enter a complete address with PIN code (at least 10 characters).";
+    const cleanPhone = form.phone.replace(/[^\d+]/g, "");
+    if (!cleanPhone || cleanPhone === "+91" || cleanPhone === "+") {
+      errs.phone = "Mobile contact number is required.";
+    } else if (cleanPhone.length < 10) {
+      errs.phone = "Please enter a valid complete mobile number.";
     }
 
     if (isPrepaid) {
       const utr = form.utr.trim();
       if (!utr) {
-        errs.utr = "Transaction ID / UTR number is required for prepaid verification.";
-      } else {
-        const utrRegex = /^[a-zA-Z0-9]{6,18}$/;
-        if (!utrRegex.test(utr)) {
-          errs.utr = "Enter a valid UTR number (6-18 characters).";
-        }
+        errs.utr = "Transaction ID / UTR number is required for transfer verification.";
+      } else if (utr.length < 12) {
+        errs.utr = "UTR / UPI Reference number must be at least 12 digits (e.g. 423812345678).";
+      } else if (utr.length > 22) {
+        errs.utr = "UTR / Reference number cannot exceed 22 characters.";
+      } else if (!/^[A-Z0-9]{12,22}$/.test(utr)) {
+        errs.utr = "Invalid UTR format. Please enter alphanumeric characters only.";
+      }
+
+      if (!form.file) {
+        errs.file = "Please attach your payment confirmation slip / screenshot.";
       }
     }
 
@@ -58,322 +206,519 @@ export default function PaymentPage({ onComplete }) {
     return true;
   }
 
-  function handlePrepaidOrder(e) {
+  async function handlePrepaidOrder(e) {
     e.preventDefault();
     if (!validateForm(true)) return;
-    sendWhatsAppOrder("Prepaid (Transfer Verification Submitted)", form.utr);
+
+    if (isAuthenticated && orderId) {
+      setIsSubmitting(true);
+      try {
+        const formData = new FormData();
+        formData.append("utrNumber", form.utr.trim());
+        if (form.file) {
+          formData.append("receipt", form.file);
+        }
+
+        await submitManualPaymentMutation.mutateAsync({
+          orderId,
+          formData,
+        });
+
+        showToast("Payment proof uploaded successfully! Order queued for audit.", "success");
+        clearCart();
+        navigate(`/checkout/success?orderId=${orderId}`);
+        return;
+      } catch (err) {
+        showToast(err.response?.data?.message || "Failed to submit payment proof.", "warning");
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      sendWhatsAppOrder("Prepaid (Direct Transfer Submitted)", form.utr);
+    }
   }
 
   function handleCODOrder(e) {
     e.preventDefault();
     if (!validateForm(false)) return;
-    sendWhatsAppOrder("COD / Pay Later on WhatsApp");
+    sendWhatsAppOrder("Cash on Delivery (WhatsApp Verification)");
   }
 
   function sendWhatsAppOrder(paymentStatus, utrNumber = "") {
     const itemsText = cart
-      .map((item) => `- ${item.name} x ${item.qty} — ₹${(item.price * item.qty).toLocaleString("en-IN")}`)
+      .map((item) => `- *${item.name}* x ${item.qty} (${formatCurrency(item.price * item.qty)})`)
       .join("\n");
 
-    const message = `🌸 *Shreekamalinee STUDIO - NEW ORDER* 🌸
+    const message = `🌸 *Shreekamalinee Studio - Order Proof Submission* 🌸
 -----------------------------------------
 👤 *Customer Name:* ${form.name.trim()}
 📞 *Phone Number:* ${form.phone.trim()}
-📍 *Delivery Address:* ${form.address.trim()}
+📍 *Delivery Address:* ${form.address.trim() || "On File"}
 
-🛍️ *Order Details:*
-${itemsText}
+🛍️ *Order Items:*
+${itemsText || "Direct Checkout Order"}
 -----------------------------------------
-💰 *Subtotal:* ₹${totalAmount.toLocaleString("en-IN")}
-🚚 *Shipping:* Free Shipping
-💵 *Grand Total:* ₹${totalAmount.toLocaleString("en-IN")}
-
-💳 *Payment Information:*
-Status: *${paymentStatus}*${utrNumber ? `\nUTR/Transaction ID: \`${utrNumber.trim()}\`` : ""}
+💰 *Grand Total:* ${formatCurrency(totalAmount)}
+💳 *Payment Method:* ${paymentStatus}${utrNumber ? `\n🔢 *UTR/Ref ID:* \`${utrNumber.trim()}\`` : ""}
+${orderId ? `📦 *Order ID:* #${orderId}` : ""}
 -----------------------------------------
-Thank you for shopping with Shreekamalinee!`;
+Please confirm receipt and dispatch schedule.`;
 
     const encodedText = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/9820785210?text=${encodedText}`;
-    
-    showToast("Redirecting to WhatsApp to complete order...");
+    const whatsappUrl = `https://wa.me/919820785210?text=${encodedText}`;
+
+    showToast("Opening WhatsApp Concierge...", "info");
     window.open(whatsappUrl, "_blank");
-    clearCart(); // Clear the cart when order is successfully completed!
-    onComplete(); // Go back home
+    clearCart();
+    if (typeof onComplete === "function") {
+      onComplete();
+    } else {
+      navigate("/");
+    }
   }
 
-  if (cart.length === 0) {
+  const formatFileSize = (bytes) => {
+    if (!bytes) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
+  if (orderId && isOrderLoading) {
+    return (
+      <div className="bg-cream min-h-screen py-24 text-center flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-rust/30 border-t-rust rounded-full animate-spin mb-4" />
+        <p className="font-serif text-lg text-charcoal">Loading Payment & Bank Details...</p>
+      </div>
+    );
+  }
+
+  if (!orderId && cart.length === 0) {
     return (
       <div className="bg-cream min-h-screen py-16 md:py-24 text-center">
         <div className="max-w-[1280px] min-[2000px]:max-w-[2100px] mx-auto px-6">
           <ShoppingBag size={48} className="mx-auto text-charcoal/20 mb-4 stroke-[1.2]" />
-          <h2 className="font-serif text-2xl font-bold mb-4">Your bag is empty</h2>
-          <p className="text-sm text-charcoal/60 mb-6">Please add items to your cart before proceeding to payment.</p>
-          <button
-            onClick={onComplete}
-            className="px-6 py-3 bg-rust text-white text-[12.5px] tracking-wider uppercase font-semibold hover:bg-rust-deep transition-colors cursor-pointer flex items-center gap-2 mx-auto"
+          <h2 className="font-serif text-2xl font-bold mb-2 text-charcoal">Your bag is empty</h2>
+          <p className="text-sm text-charcoal/60 mb-6">Please add handcrafted items to your bag before proceeding.</p>
+          <Link
+            to="/shop"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-rust text-white text-xs tracking-wider uppercase font-semibold hover:bg-rust-deep transition-colors rounded-xs shadow-xs"
           >
-            <ArrowLeft size={14} className="stroke-[2.2]" />
-            <span>Go Back Home</span>
-          </button>
+            <ArrowLeft size={14} />
+            <span>Explore Catalog</span>
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-cream min-h-screen py-16 md:py-24">
-      <div className="max-w-[1280px] min-[2000px]:max-w-[2100px] mx-auto px-6 md:px-10">
-        
-        {/* Header Title */}
-        <div className="text-center max-w-xl mx-auto mb-16">
-          <span className="text-[11px] tracking-[0.25em] uppercase text-rust font-semibold block mb-3">
-            Secure Payment Gateway
-          </span>
-          <h1 className="font-serif text-4xl md:text-5xl font-semibold leading-tight text-charcoal">
-            Verify Transfer
-          </h1>
-          <div className="w-16 h-0.5 bg-rust mx-auto mt-6" />
+    <div className="bg-cream min-h-screen py-6 sm:py-10 md:py-14">
+      <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2000px] 4k:max-w-[2400px] mx-auto px-3.5 sm:px-6 md:px-10 2xl:px-12">
+        <Breadcrumb
+          items={[
+            { label: "Shopping Bag", to: "/cart" },
+            { label: "Checkout", to: "/checkout" },
+            { label: "Payment & Proof Verification" },
+          ]}
+        />
+
+        {/* Page Header */}
+        <div className="pb-4 mb-6 sm:mb-8 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-[11px] tracking-[0.2em] uppercase font-bold text-rust">
+              Payment Confirmation
+            </span>
+            <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-charcoal">
+              {orderId ? `Verify Order #${orderId.substring(0, 8).toUpperCase()}` : "Direct Bank / UPI Transfer"}
+            </h1>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+            <ShieldCheck size={14} />
+            <span>100% Secure Payment Verification</span>
+          </div>
         </div>
 
-        <div className="grid lg:grid-cols-[1.5fr_1fr] gap-12 items-start">
-          
-          {/* Left Column: QR Code & Bank Details */}
-          <div className="space-y-8">
-            {/* Cart summary header */}
-            <div className="bg-cream-2/40 p-6 border border-line rounded-sm flex justify-between items-center">
+
+        <div className="grid lg:grid-cols-[1.3fr_1fr] 2xl:grid-cols-[1.5fr_1fr] gap-6 lg:gap-10 2xl:gap-14 items-start">
+          {/* Left Column: Bank Details & QR Code */}
+          <div className="space-y-6">
+            {/* Amount Banner */}
+            <div className="bg-white border border-line rounded-sm p-4 sm:p-6 shadow-xs flex items-center justify-between">
               <div>
-                <h3 className="font-serif text-lg font-bold text-charcoal">Order Amount to Pay</h3>
-                <span className="text-xs text-charcoal/50">Includes all applicable taxes</span>
+                <span className="text-[11px] uppercase tracking-wider text-charcoal/60 font-semibold block mb-0.5">
+                  Total Payable Amount
+                </span>
+                <h3 className="font-serif text-xl sm:text-2xl font-bold text-charcoal">
+                  {formatCurrency(totalAmount)}
+                </h3>
               </div>
-              <span className="text-2xl font-bold text-rust">
-                ₹{totalAmount.toLocaleString("en-IN")}
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                Zero Surcharge
               </span>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
-              
-              {/* Option 1: QR Code */}
-              <div className="bg-white p-6 border border-line rounded-sm text-center shadow-xs flex flex-col justify-between items-center">
-                <div>
-                  <h4 className="font-serif text-base font-bold mb-1 text-charcoal">Option A: Scan UPI QR</h4>
-                  <p className="text-[12px] text-charcoal/50 mb-6">Scan using GooglePay, PhonePe, Paytm</p>
-                </div>
-                
-                {/* Mock QR Code graphic */}
-                <div className="w-44 h-44 border border-line bg-cream-2/30 p-3 rounded-sm relative flex items-center justify-center mb-6">
-                  {/* Outer QR layout */}
-                  <div className="absolute top-3 left-3 w-6 h-6 border-t-4 border-l-4 border-charcoal" />
-                  <div className="absolute top-3 right-3 w-6 h-6 border-t-4 border-r-4 border-charcoal" />
-                  <div className="absolute bottom-3 left-3 w-6 h-6 border-b-4 border-l-4 border-charcoal" />
-                  <div className="absolute bottom-3 right-3 w-6 h-6 border-b-4 border-r-4 border-charcoal" />
-                  {/* Central QR block */}
-                  <div className="w-24 h-24 grid grid-cols-5 gap-1 opacity-80">
-                    {[...Array(25)].map((_, i) => (
-                      <div
-                        key={i}
-                        className={`rounded-xs ${
-                          (i % 3 === 0 || i % 7 === 0 || i === 0 || i === 4 || i === 20 || i === 24)
-                            ? "bg-charcoal"
-                            : "bg-transparent"
-                        }`}
-                      />
-                    ))}
+            {/* Transfer Options (QR + Bank) */}
+            <div className="grid sm:grid-cols-2 gap-6">
+              {/* Option A: UPI QR Code */}
+              <div className="bg-white p-5 sm:p-6 border border-line rounded-sm shadow-xs flex flex-col justify-between items-center text-center">
+                <div className="w-full">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-charcoal uppercase tracking-wider mb-1">
+                    <QrCode size={16} className="text-rust" />
+                    <span>Option A: Scan UPI QR</span>
                   </div>
-                  <span className="absolute text-[10px] tracking-widest bg-rust text-white font-bold px-2 py-0.5 shadow-xs uppercase">
-                    Shreekamalinee UPI
-                  </span>
+                  <p className="text-[11.5px] text-charcoal/60 mb-4">GooglePay, PhonePe, Paytm, BHIM</p>
                 </div>
 
+                {/* QR Code Container */}
+                <div className="w-44 h-44 sm:w-48 sm:h-48 border border-line bg-cream-2/30 p-3 rounded-sm flex items-center justify-center relative shadow-inner overflow-hidden mb-4">
+                  {activeBank.qrCodeUrl ? (
+                    <img
+                      src={activeBank.qrCodeUrl}
+                      alt="UPI QR Code"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center p-3">
+                      <QrCode size={64} className="mx-auto text-charcoal/30 mb-2 stroke-[1.2]" />
+                      <span className="text-[10.5px] font-bold text-rust uppercase tracking-wider block">
+                        Shreekamalinee UPI
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* UPI ID Copy Box */}
                 <div className="w-full">
-                  <span className="block text-[11px] uppercase tracking-wider text-charcoal/40 font-medium mb-1.5">UPI ID</span>
+                  <span className="block text-[10.5px] uppercase font-bold tracking-wider text-charcoal/50 mb-1">
+                    Official Store UPI ID
+                  </span>
                   <button
+                    type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText("Shreekamalinee@upi");
-                      showToast("UPI ID Copied to Clipboard!");
+                      navigator.clipboard.writeText(activeBank.upiId);
+                      setCopiedUpi(true);
+                      showToast("UPI ID copied to clipboard!", "success");
+                      setTimeout(() => setCopiedUpi(false), 2500);
                     }}
-                    className="w-full py-2 bg-cream hover:bg-cream-2 text-[12.5px] border border-line rounded-sm font-semibold tracking-wide transition-colors cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-2 px-3 bg-cream-2/40 hover:bg-cream-2 border border-line rounded-xs text-xs font-mono font-bold text-charcoal flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <span>Shreekamalinee@upi</span>
-                    <Copy size={13} className="stroke-[1.8]" />
+                    <span className="truncate">{activeBank.upiId}</span>
+                    {copiedUpi ? (
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                    ) : (
+                      <Copy size={13} className="text-charcoal/50 shrink-0" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              {/* Option 2: Bank Details */}
-              <div className="bg-white p-6 border border-line rounded-sm shadow-xs flex flex-col justify-between">
+              {/* Option B: Bank Transfer */}
+              <div className="bg-white p-5 sm:p-6 border border-line rounded-sm shadow-xs flex flex-col justify-between">
                 <div>
-                  <h4 className="font-serif text-base font-bold mb-1 text-charcoal">Option B: Bank Transfer</h4>
-                  <p className="text-[12px] text-charcoal/50 mb-6">Initiate IMPS, NEFT, or RTGS transfer</p>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-charcoal uppercase tracking-wider mb-1">
+                    <Landmark size={16} className="text-rust" />
+                    <span>Option B: Bank Transfer</span>
+                  </div>
+                  <p className="text-[11.5px] text-charcoal/60 mb-4">NEFT, IMPS, RTGS Transfer</p>
+
+                  <div className="space-y-3 pt-3 border-t border-line/70 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-charcoal/50 block">
+                        Bank Name
+                      </span>
+                      <strong className="text-charcoal font-semibold">{activeBank.bankName}</strong>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-charcoal/50 block">
+                        Account Holder
+                      </span>
+                      <strong className="text-charcoal font-serif">{activeBank.accountName}</strong>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-charcoal/50 block">
+                        Account Number
+                      </span>
+                      <strong className="text-charcoal font-mono tracking-wider">{activeBank.accountNumber}</strong>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-charcoal/50 block">
+                        IFSC Code
+                      </span>
+                      <strong className="text-rust font-mono font-bold tracking-wider">{activeBank.ifscCode}</strong>
+                    </div>
+
+                    {activeBank.branchName && (
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-charcoal/50 block">
+                          Branch
+                        </span>
+                        <span className="text-charcoal/70 text-[11.5px]">{activeBank.branchName}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-4 border-t border-line pt-4 mb-4">
-                  <div>
-                    <span className="block text-[10.5px] uppercase tracking-wider text-charcoal/40 font-medium">Bank Name</span>
-                    <strong className="text-[13.5px] text-charcoal">HDFC Bank Limited</strong>
-                  </div>
-                  <div>
-                    <span className="block text-[10.5px] uppercase tracking-wider text-charcoal/40 font-medium">Account Name</span>
-                    <strong className="text-[13.5px] text-charcoal font-serif">Shreekamalinee Studio</strong>
-                  </div>
-                  <div>
-                    <span className="block text-[10.5px] uppercase tracking-wider text-charcoal/40 font-medium">Account Number</span>
-                    <strong className="text-[13.5px] text-charcoal tracking-wider">50200067382109</strong>
-                  </div>
-                  <div>
-                    <span className="block text-[10.5px] uppercase tracking-wider text-charcoal/40 font-medium">IFSC Code</span>
-                    <strong className="text-[13.5px] text-charcoal tracking-wide">HDFC0000003</strong>
-                  </div>
-                  <div>
-                    <span className="block text-[10.5px] uppercase tracking-wider text-charcoal/40 font-medium">Branch</span>
-                    <p className="text-[12.5px] text-charcoal/70">Connaught Place, New Delhi</p>
-                  </div>
+                <div className="pt-4 border-t border-line/70 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `A/C: ${activeBank.accountNumber}, IFSC: ${activeBank.ifscCode}, Name: ${activeBank.accountName}, Bank: ${activeBank.bankName}`
+                      );
+                      setCopiedBank(true);
+                      showToast("Bank details copied to clipboard!", "success");
+                      setTimeout(() => setCopiedBank(false), 2500);
+                    }}
+                    className="w-full py-2 px-3 bg-cream-2/40 hover:bg-cream-2 border border-line rounded-xs text-xs font-bold text-charcoal flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    {copiedBank ? (
+                      <>
+                        <Check size={14} className="text-emerald-600" />
+                        <span className="text-emerald-700">Copied to Clipboard</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={13} className="text-charcoal/50" />
+                        <span>Copy All Bank Info</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText("A/C: 50200067382109, IFSC: HDFC0000003");
-                    showToast("Bank details copied!");
-                  }}
-                  className="w-full py-2 bg-cream hover:bg-cream-2 text-[12.5px] border border-line rounded-sm font-semibold tracking-wide transition-colors cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <span>Copy Account Info</span>
-                  <Copy size={13} className="stroke-[1.8]" />
-                </button>
               </div>
-
             </div>
           </div>
 
-          {/* Right Column: Transaction Submission Form */}
-          <div className="bg-white p-8 border border-line rounded-sm shadow-sm">
-            <h3 className="font-serif text-xl font-bold mb-2 text-charcoal">Checkout & Verification</h3>
-            <p className="text-xs text-charcoal/50 mb-6">
-              Please enter your shipping address and submit your order details via WhatsApp.
-            </p>
+          {/* Right Column: Verification & Proof Submission Form */}
+          <div className="bg-white border border-line rounded-sm p-5 sm:p-7 shadow-xs">
+            <div className="pb-4 mb-5 border-b border-line">
+              <h3 className="font-serif font-bold text-lg sm:text-xl text-charcoal">
+                Submit Payment Verification
+              </h3>
+              <p className="text-xs text-charcoal/60 mt-1">
+                Enter your transaction reference number and attach your payment receipt screenshot.
+              </p>
+            </div>
 
-            <form onSubmit={handlePrepaidOrder} noValidate className="space-y-5">
+            <form onSubmit={handlePrepaidOrder} noValidate className="space-y-4">
+              {/* Full Name */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-charcoal/60 mb-2 font-medium">Full Name *</label>
+                <label className="block text-xs uppercase font-bold tracking-wider text-charcoal mb-1.5">
+                  Recipient Full Name *
+                </label>
+                <div className="relative">
+                  <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal/40" />
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => {
+                      setForm({ ...form, name: e.target.value });
+                      if (errors.name) setErrors((prev) => ({ ...prev, name: null }));
+                    }}
+                    placeholder="Enter full recipient name"
+                    className={`w-full pl-10 pr-3.5 py-2.5 text-xs border rounded-xs outline-none bg-white font-medium ${
+                      errors.name ? "border-rose-500 bg-rose-50/20" : "border-line focus:border-rust"
+                    }`}
+                  />
+                </div>
+                {errors.name && <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.name}</p>}
+              </div>
+
+              {/* Mobile Contact Number with Flag Picker */}
+              <div>
+                <label className="block text-xs uppercase font-bold tracking-wider text-charcoal mb-1.5">
+                  Mobile Contact Number *
+                </label>
+                <div className="relative">
+                  <PhoneInput
+                    defaultCountry="in"
+                    value={form.phone}
+                    onChange={(phone) => {
+                      setForm((prev) => ({ ...prev, phone }));
+                      if (errors.phone) setErrors((prev) => ({ ...prev, phone: null }));
+                    }}
+                    className="w-full text-xs"
+                    inputClassName="!w-full !py-2.5 !px-3.5 !text-xs !bg-white !border-line !rounded-r-xs !font-medium !text-charcoal focus:!border-rust"
+                    countrySelectorStyleProps={{
+                      buttonClassName: "!bg-gray-50 !border-line !rounded-l-xs !px-2.5",
+                    }}
+                  />
+                </div>
+                {errors.phone && <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.phone}</p>}
+              </div>
+
+              {/* UTR / Reference ID */}
+              <div>
+                <label className="block text-xs uppercase font-bold tracking-wider text-charcoal mb-1.5">
+                  12-Digit UTR / Transaction Reference ID *
+                </label>
                 <input
                   type="text"
-                  value={form.name}
-                  onChange={(e) => {
-                    setForm({ ...form, name: e.target.value });
-                    if (errors.name) setErrors({ ...errors, name: null });
-                  }}
-                  placeholder="Enter recipient's name"
-                  className={`w-full px-4 py-3 border bg-cream text-sm outline-none transition-colors ${
-                    errors.name ? "border-rose-500 focus:border-rose-600 bg-rose-50/30" : "border-line focus:border-rust"
-                  }`}
-                />
-                {errors.name && <p className="text-[11.5px] text-rose-600 mt-1 font-medium">{errors.name}</p>}
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-charcoal/60 mb-2 font-medium">Phone Number *</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => {
-                    setForm({ ...form, phone: e.target.value });
-                    if (errors.phone) setErrors({ ...errors, phone: null });
-                  }}
-                  placeholder="10-digit mobile number"
-                  className={`w-full px-4 py-3 border bg-cream text-sm outline-none transition-colors ${
-                    errors.phone ? "border-rose-500 focus:border-rose-600 bg-rose-50/30" : "border-line focus:border-rust"
-                  }`}
-                />
-                {errors.phone && <p className="text-[11.5px] text-rose-600 mt-1 font-medium">{errors.phone}</p>}
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-charcoal/60 mb-2 font-medium">Delivery Address *</label>
-                <textarea
-                  rows="3"
-                  value={form.address}
-                  onChange={(e) => {
-                    setForm({ ...form, address: e.target.value });
-                    if (errors.address) setErrors({ ...errors, address: null });
-                  }}
-                  placeholder="Enter full shipping address with state and PIN code"
-                  className={`w-full px-4 py-3 border bg-cream text-sm outline-none resize-none transition-colors ${
-                    errors.address ? "border-rose-500 focus:border-rose-600 bg-rose-50/30" : "border-line focus:border-rust"
-                  }`}
-                />
-                {errors.address && <p className="text-[11.5px] text-rose-600 mt-1 font-medium">{errors.address}</p>}
-              </div>
-
-              <div className="pt-2 border-t border-line/60">
-                <span className="block text-[11px] uppercase tracking-wider text-charcoal/40 font-bold mb-3">Prepaid Verification (UPI/Bank)</span>
-                <label className="block text-xs uppercase tracking-wider text-charcoal/60 mb-2 font-medium">UTR / Transaction ID</label>
-                <input
-                  type="text"
+                  maxLength={22}
                   value={form.utr}
                   onChange={(e) => {
-                    setForm({ ...form, utr: e.target.value });
-                    if (errors.utr) setErrors({ ...errors, utr: null });
+                    const clean = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+                    setForm({ ...form, utr: clean });
+                    if (errors.utr) setErrors((prev) => ({ ...prev, utr: null }));
                   }}
-                  placeholder="12-digit transaction ID (if paid online)"
-                  className={`w-full px-4 py-3 border bg-cream text-sm outline-none tracking-wider transition-colors ${
-                    errors.utr ? "border-rose-500 focus:border-rose-600 bg-rose-50/30" : "border-line focus:border-rust"
+                  placeholder="e.g. 423589123456 (12-digit UPI Ref)"
+                  className={`w-full px-3.5 py-2.5 text-xs font-mono border rounded-xs outline-none bg-white uppercase font-bold tracking-wider ${
+                    errors.utr ? "border-rose-500 bg-rose-50/20" : "border-line focus:border-rust"
                   }`}
                 />
-                {errors.utr && <p className="text-[11.5px] text-rose-600 mt-1 font-medium">{errors.utr}</p>}
+                <span className="text-[10.5px] text-charcoal/50 mt-1 block">
+                  Find the 12-digit UPI Ref/UTR in Google Pay, PhonePe, Paytm, or your banking app.
+                </span>
+                {errors.utr && <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.utr}</p>}
               </div>
 
-              {/* Upload Receipt Screenshot Section (Commented out)
+              {/* Interactive Proof Slip Upload & Live Preview */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-charcoal/60 mb-2 font-medium">
-                  Upload Receipt Screenshot (Optional)
+                <label className="block text-xs uppercase font-bold tracking-wider text-charcoal mb-1.5">
+                  Payment Screenshot (Proof Slip) *
                 </label>
-                <div className="border border-dashed border-line p-4 rounded-sm text-center bg-cream-2/20 flex flex-col items-center justify-center gap-2">
-                  <Upload size={20} className="text-charcoal/30 stroke-[1.8]" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setForm({ ...form, file: e.target.files[0] })}
-                    className="text-xs text-charcoal/50 w-full cursor-pointer"
-                  />
-                  <span className="block text-[10px] text-charcoal/40">PNG, JPG up to 5MB</span>
-                </div>
-                
-                <div className="mt-3 p-3 bg-rust/5 border border-rust/10 rounded-sm text-[11.5px] leading-relaxed text-rust-deep flex items-start gap-2 animate-fadeIn">
-                  <span className="shrink-0 text-xs">💡</span>
-                  <p>
-                    <strong>Note:</strong> Since WhatsApp does not allow files to be attached automatically through links, please <strong>manually attach/paste</strong> your payment receipt screenshot inside the WhatsApp chat after it opens.
-                  </p>
-                </div>
-              </div>
-              */}
 
-              <div className="space-y-3 pt-4">
+                {filePreview ? (
+                  /* Uploaded File Preview Card */
+                  <div className="border border-emerald-200 bg-emerald-50/40 rounded-xs p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {filePreview === "pdf" ? (
+                        <div className="w-12 h-14 bg-rose-100 text-rose-700 rounded-xs flex items-center justify-center shrink-0 border border-rose-200">
+                          <FileText size={22} />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-14 rounded-xs overflow-hidden border border-emerald-300 shrink-0 bg-white">
+                          <img
+                            src={filePreview}
+                            alt="Receipt Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle size={14} className="text-emerald-600 shrink-0" />
+                          <span className="text-xs font-bold text-charcoal truncate block">
+                            {form.file?.name}
+                          </span>
+                        </div>
+                        <span className="text-[10.5px] text-charcoal/60 block mt-0.5">
+                          {formatFileSize(form.file?.size)} • Ready to submit
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2.5 py-1 text-[11px] font-bold text-rust hover:bg-rust/10 rounded-xs transition-colors cursor-pointer"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="p-1 text-charcoal/40 hover:text-rose-600 rounded-xs transition-colors cursor-pointer"
+                        title="Remove Slip"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Drag & Drop Upload Dropzone */
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      if (e.dataTransfer.files?.[0]) {
+                        handleFileSelect(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xs p-5 text-center cursor-pointer transition-all ${
+                      isDragging
+                        ? "border-rust bg-rust/5 scale-[1.01]"
+                        : errors.file
+                        ? "border-rose-400 bg-rose-50/20"
+                        : "border-line bg-cream-2/30 hover:border-rust/60 hover:bg-cream-2/50"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-white border border-line flex items-center justify-center mx-auto mb-2 text-rust shadow-2xs">
+                      <Upload size={18} />
+                    </div>
+                    <span className="text-xs font-bold text-charcoal block mb-0.5">
+                      Click to upload or drag & drop slip
+                    </span>
+                    <span className="text-[11px] text-charcoal/50 block">
+                      PNG, JPG, WebP, PDF (Max size: 10MB)
+                    </span>
+                  </div>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg,application/pdf"
+                  onChange={(e) => handleFileSelect(e.target.files?.[0])}
+                  className="hidden"
+                />
+                {errors.file && <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.file}</p>}
+              </div>
+
+              {/* Submit Verification Action */}
+              <div className="pt-3 space-y-3">
                 <button
                   type="submit"
-                  className="w-full py-4 bg-rust hover:bg-rust-deep text-white text-[12.5px] tracking-widest uppercase font-semibold shadow-md transition-colors cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 bg-rust hover:bg-rust-deep text-white text-xs tracking-wider uppercase font-bold rounded-xs shadow-sm transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Confirm Prepaid Order via WhatsApp
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <span>Submitting Payment Proof...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={15} />
+                      <span>Confirm & Submit Payment Proof</span>
+                    </>
+                  )}
                 </button>
 
-                <div className="relative flex items-center justify-center py-1">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-line"></div></div>
-                  <span className="relative px-3 bg-white text-[10px] text-charcoal/40 uppercase font-semibold tracking-wider">or</span>
+                <div className="relative flex items-center justify-center py-0.5">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-line/60" />
+                  </div>
+                  <span className="relative px-3 bg-white text-[10px] text-charcoal/40 uppercase font-bold tracking-wider">
+                    or
+                  </span>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleCODOrder}
-                  className="w-full py-4 bg-charcoal hover:bg-charcoal/90 text-cream text-[12.5px] tracking-widest uppercase font-semibold shadow-md transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-cream-2/60 hover:bg-cream-2 border border-line text-charcoal text-xs tracking-wider uppercase font-bold rounded-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Order via WhatsApp (COD / Pay Later)
+                  <Smartphone size={14} className="text-emerald-700" />
+                  <span>Verify via WhatsApp Concierge</span>
                 </button>
               </div>
             </form>
           </div>
-
         </div>
-
       </div>
     </div>
   );
 }
+

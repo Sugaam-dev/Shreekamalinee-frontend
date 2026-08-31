@@ -3,7 +3,9 @@ import { useCart } from "../../context/CartContext.jsx";
 import { ShoppingBag, Heart, Sparkles, X } from "lucide-react";
 
 export default function Toast() {
-  const { toast, setToast } = useCart();
+  const { toast = { show: false, msg: "", type: "info" }, setToast } = useCart();
+
+  if (!toast?.show) return null;
 
   return (
     <AnimatePresence>
@@ -21,9 +23,9 @@ export default function Toast() {
 
             {/* Icon Circle */}
             <div className="w-10 h-10 rounded-full bg-black/50 border border-mustard/35 flex items-center justify-center shrink-0 text-mustard shadow-inner">
-              {toast.type === "wishlist" ? (
+              {toast?.type === "wishlist" ? (
                 <Heart className="w-4 h-4 text-rose-400 fill-rose-400/20 animate-pulse" />
-              ) : toast.type === "cart" ? (
+              ) : toast?.type === "cart" ? (
                 <ShoppingBag className="w-4 h-4 text-mustard" />
               ) : (
                 <Sparkles className="w-4.5 h-4.5 text-mustard" />
@@ -38,18 +40,19 @@ export default function Toast() {
                 <span className="text-white/60 font-normal">Notice</span>
               </div>
               <p className="text-[13px] font-medium text-cream/95 leading-tight mt-0.5 truncate">
-                {toast.msg}
+                {toast?.msg || ""}
               </p>
             </div>
 
             {/* Close Button */}
             <button
-              onClick={() => setToast((prev) => ({ ...prev, show: false }))}
+              onClick={() => setToast && setToast((prev) => ({ ...prev, show: false }))}
               className="text-white/40 hover:text-white transition-colors p-1.5 cursor-pointer shrink-0 rounded-full hover:bg-white/10"
               title="Close notification"
             >
               <X className="w-3.5 h-3.5" />
             </button>
+
 
             {/* Bottom Shrinking Progress Indicator */}
             <motion.div

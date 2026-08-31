@@ -1,16 +1,70 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, Heart, ShoppingBag, Menu, X, ChevronDown } from "lucide-react";
+import { Search, Heart, ShoppingBag, Menu, X, ChevronDown, User, Package, MapPin, LogOut } from "lucide-react";
 import { useCart } from "../../context/CartContext.jsx";
-import { COLLECTION_CATEGORIES } from "../../data/products/products.js";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { useCategoriesQuery } from "../../queries/useCategoryQueries.js";
+import SearchModal from "../ui/SearchModal.jsx";
+
+import { useBankDetailsQuery } from "../../queries/useSettingsQueries.js";
 
 export default function Navbar() {
-  const { cart, wishlist, setDrawerOpen, setWishlistOpen, showToast } = useCart();
+  const { cart, wishlist, setDrawerOpen, setWishlistOpen } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
+  const { data: dbCategories = [] } = useCategoriesQuery();
+  const { data: storeSettings } = useBankDetailsQuery();
+
+  // Dynamically resolve parent categories and subcategories purely from DB
+  const navCategories = useMemo(() => {
+    if (Array.isArray(dbCategories) && dbCategories.length > 0) {
+      const mainCats = dbCategories.filter((c) => !c.parentId && !c.parentCategoryId);
+      return mainCats.map((main) => {
+        const subcats = dbCategories
+          .filter((c) => (c.parentId === main.id || c.parentCategoryId === main.id) && c.id !== main.id)
+          .map((s) => s.name);
+        return {
+          id: main.id,
+          name: main.name,
+          image: main.imageUrl || "/images/placeholder-saree.jpg",
+          subcats: subcats,
+        };
+      });
+    }
+    return [];
+  }, [dbCategories]);
+
+
+
+  
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mobileCollectionsOpen, setMobileCollectionsOpen] = useState(false);
+  const [mobileCollectionsOpen, setMobileCollectionsOpen] = useState(true);
   const [mobileActiveCategory, setMobileActiveCategory] = useState(null);
   const [desktopOpen, setDesktopOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+
   const closeTimerRef = useRef(null);
+  const userMenuTimerRef = useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const count = cart.reduce((s, i) => s + i.qty, 0);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname, location.search]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [mobileOpen]);
 
   const handleMegaEnter = () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -20,141 +74,170 @@ export default function Navbar() {
   const handleMegaLeave = () => {
     closeTimerRef.current = setTimeout(() => setDesktopOpen(false), 150);
   };
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchVal, setSearchVal] = useState("");
-  const location = useLocation();
-  const navigate = useNavigate();
-  const count = cart.reduce((s, i) => s + i.qty, 0);
 
-  let Flashsale = false ;
+  const handleUserEnter = () => {
+    if (userMenuTimerRef.current) clearTimeout(userMenuTimerRef.current);
+    setUserMenuOpen(true);
+  };
+
+  const handleUserLeave = () => {
+    userMenuTimerRef.current = setTimeout(() => setUserMenuOpen(false), 150);
+  };
 
   const navItems = [
     { label: "Home", path: "/" },
-    { label: "About", path: "/about" },
     { label: "Collections", path: "#", isMega: true },
+    { label: "About", path: "/about" },
     { label: "Contact", path: "/contact" },
-    //{ label: "Login", path: "/login", isLogin: true }
   ];
 
-  function handleLoginClick(e) {
-    e.preventDefault();
-    showToast("Register/Login modal triggered! (Client Mockup)");
-    setMobileOpen(false);
-  }
+  // Top Offer / Announcement Bar is visible ONLY when active and configured from Backend DB
+  const isAnnouncementActive = Boolean(
+    storeSettings?.isAnnouncementActive === true &&
+    storeSettings?.announcementText &&
+    storeSettings.announcementText.trim().length > 0
+  );
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchVal.trim()) {
-      navigate(`/product?search=${encodeURIComponent(searchVal.trim())}`);
-      setSearchVal("");
-      setSearchOpen(false);
-      setMobileOpen(false);
+  const announcementText = storeSettings?.announcementText?.trim() || "";
+  const announcementLink = storeSettings?.announcementLink?.trim() || "/shop";
+
+  const dynamicAnnouncements = useMemo(() => {
+    if (!isAnnouncementActive || !announcementText) return [];
+
+    if (storeSettings?.announcementsJson) {
+      try {
+        const parsed = JSON.parse(storeSettings.announcementsJson);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {
+        // ignore parse error
+      }
     }
-  };
+    return [announcementText];
+  }, [storeSettings, announcementText, isAnnouncementActive]);
+
+  const announcementLoop = dynamicAnnouncements.length > 0
+    ? [...dynamicAnnouncements, ...dynamicAnnouncements, ...dynamicAnnouncements, ...dynamicAnnouncements]
+    : [];
 
   return (
     <>
-    {Flashsale &&
-      <div className="bg-charcoal text-cream/95 text-[11.5px] tracking-[0.15em] uppercase text-center py-2.5 px-2 font-medium">
-        ✨ Festive Edit Live — Premium Handloom Collections — Free Shipping over ₹1,499 ✨
-      </div>
-}
+      {/* Top Offer Bar: Rendered ONLY when admin activates and configures an offer in Backend */}
+      {isAnnouncementActive && dynamicAnnouncements.length > 0 && (
+        <Link
+          to={announcementLink}
+          className="block bg-charcoal text-cream/95 text-[11px] md:text-[11.5px] tracking-[0.15em] uppercase py-2 border-b border-line/30 overflow-hidden select-none whitespace-nowrap hover:bg-black transition-colors"
+        >
+          <div className="animate-marquee flex items-center">
+            {announcementLoop.map((item, idx) => (
+              <span
+                key={idx}
+                className="mx-8 font-medium text-cream/95 shrink-0 flex items-center"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </Link>
+      )}
 
-      <header className="sticky top-0 z-50 bg-[#FAF7F2]/90 backdrop-blur-md border-b border-[#E6DFD3]/80 shadow-[0_4px_25px_-5px_rgba(34,29,27,0.04)] transition-all duration-300">
-        <nav className="max-w-[1280px] min-[2000px]:max-w-[2100px] mx-auto flex items-center justify-between px-6 md:px-10 py-2.5">
-          <Link 
-            to="/" 
-            className="flex items-center group transition-transform duration-300 hover:scale-[1.02]"
+
+
+      <header className="sticky top-0 z-50 bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E6DFD3]/80 shadow-[0_4px_25px_-5px_rgba(34,29,27,0.04)] transition-all duration-300">
+        <nav className="max-w-[1280px] min-[2000px]:max-w-[2100px] mx-auto flex items-center justify-between px-4 sm:px-6 md:px-10 py-2 sm:py-2.5">
+          {/* Brand Logo (Left) */}
+          <Link
+            to="/"
+            className="flex items-center group transition-transform duration-300 hover:scale-[1.02] shrink-0"
           >
             <img
               src="/shreekamalineeLogo.png"
               alt="Shreekamalinee Logo"
-              className="h-20 md:h-22 w-auto object-contain drop-shadow-xs"
+              className="h-12 sm:h-16 md:h-20 w-auto object-contain drop-shadow-xs"
             />
           </Link>
-          <div className="hidden lg:flex items-center gap-3.5 text-[12.5px] tracking-[0.15em] font-medium uppercase">
+
+          {/* Desktop Nav Items (Circle / Pill shape with subtle popup on hover) */}
+          <div className="hidden lg:flex items-center gap-2 xl:gap-3.5 text-[12px] xl:text-[12.5px] tracking-[0.15em] font-medium uppercase">
             {navItems.map((item) => {
               const isItemActive = item.isMega
-                ? location.pathname.startsWith("/product") && location.search.includes("category")
+                ? (location.pathname.startsWith("/shop") || location.pathname.startsWith("/product")) &&
+                  location.search.includes("category")
                 : location.pathname === item.path && !location.search.includes("category");
 
-              return item.isLogin ? (
-                <a
+              return item.isMega ? (
+                <div
                   key={item.label}
-                  href="#login"
-                  onClick={handleLoginClick}
-                  className="px-4 py-1.5 rounded-full border border-[#BD5B34]/30 text-rust font-semibold transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:border-rust hover:bg-gradient-to-r hover:from-[#F4EEE3] hover:to-[#FAF7F2] hover:shadow-[0_4px_14px_rgba(189,91,52,0.15)]"
-                >
-                  {item.label}
-                </a>
-              ) : item.isMega ? (
-                <div 
-                  key={item.label} 
-                  className="py-1"
+                  className="py-1 relative"
                   onMouseEnter={handleMegaEnter}
                   onMouseLeave={handleMegaLeave}
                 >
                   <span
-                    className={`cursor-pointer px-4 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 ease-out ${
+                    className={`cursor-pointer px-4 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 ease-out transform hover:-translate-y-0.5 active:scale-95 ${
                       isItemActive
-                        ? "bg-gradient-to-r from-[#F4EEE3] via-[#EFE6D5] to-[#F4EEE3] text-[#4A3228] font-bold border border-[#D6A23F]/50 shadow-[0_4px_16px_rgba(214,162,63,0.18)] -translate-y-0.5 scale-[1.02]"
-                        : "text-[#221D1B]/85 border border-transparent hover:border-[#E6DFD3] hover:bg-[#F4EEE3]/60 hover:text-[#BD5B34] hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-[0_4px_14px_rgba(34,29,27,0.06)]"
+                        ? "bg-gradient-to-r from-[#F4EEE3] via-[#EFE6D5] to-[#F4EEE3] text-[#4A3228] font-bold border border-[#D6A23F]/50 shadow-[0_4px_16px_rgba(214,162,63,0.18)]"
+                        : "text-[#221D1B]/85 hover:text-rust hover:bg-[#F4EEE3]/70 hover:shadow-xs border border-transparent hover:border-[#E6DFD3]/60"
                     }`}
                   >
                     {item.label}
-                    <ChevronDown size={13} className={`transition-transform duration-300 ${desktopOpen ? "rotate-180 text-rust" : "text-[#221D1B]/40"} ${
-                      isItemActive ? "text-rust" : ""
-                    }`} />
+                    <ChevronDown
+                      size={13}
+                      className={`transition-transform duration-300 ${
+                        desktopOpen ? "rotate-180 text-rust" : "text-[#221D1B]/40"
+                      }`}
+                    />
                   </span>
+
                   {/* Mega Menu Dropdown */}
                   <div
                     className={`absolute top-full left-1/2 -translate-x-1/2 pt-2 transition-all duration-300 ease-out z-50 ${
-                      desktopOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2 pointer-events-none"
+                      desktopOpen
+                        ? "opacity-100 visible translate-y-0"
+                        : "opacity-0 invisible -translate-y-2 pointer-events-none"
                     }`}
                     onMouseEnter={handleMegaEnter}
                     onMouseLeave={handleMegaLeave}
                   >
-                    {/* Transparent hover bridge fills the exact pt-2 (8px) gap without shifting the dropdown */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 h-2 w-[1050px] max-w-[98vw] bg-transparent" />
-                    <div className="bg-[#FAF7F2]/98 backdrop-blur-xl border border-[#E6DFD3] shadow-[0_25px_60px_-15px_rgba(34,29,27,0.12)] p-8 rounded-lg w-[1000px] max-w-[95vw] relative overflow-hidden">
+                    <div className="bg-[#FAF7F2]/98 backdrop-blur-xl border border-[#E6DFD3] shadow-[0_25px_60px_-15px_rgba(34,29,27,0.12)] p-8 rounded-sm w-[1000px] max-w-[95vw] relative overflow-hidden">
                       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#D6A23F]/60 to-transparent" />
                       <div className="grid grid-cols-4 gap-8">
-                        {COLLECTION_CATEGORIES.map((category) => (
-                          <div key={category.name} className="flex flex-col gap-3.5 group/col">
-                            {/* Category image card on top */}
+                        {navCategories.map((category) => (
+                          <div key={category.name} className="flex flex-col gap-3 group/col">
                             <Link
-                              to={`/product?category=${encodeURIComponent(category.name)}`}
+                              to={`/shop?category=${encodeURIComponent(category.name)}`}
                               onClick={() => setDesktopOpen(false)}
-                              className="overflow-hidden rounded-md h-32 w-full border border-[#E6DFD3]/70 block relative shadow-sm group-hover/col:border-rust/40 transition-colors duration-300"
+                              className="overflow-hidden rounded-xs h-32 w-full border border-[#E6DFD3]/70 block relative shadow-xs group-hover/col:border-rust/40 transition-colors"
                             >
                               <img
                                 src={category.image}
                                 alt={category.name}
                                 className="w-full h-full object-cover transform group-hover/col:scale-108 transition-transform duration-700 ease-out"
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/40 via-transparent to-transparent group-hover/col:opacity-75 transition-opacity duration-300" />
-                              <span className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-[11px] font-medium tracking-wider uppercase drop-shadow-md">
-                                Explore Collection →
+                              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 via-transparent to-transparent group-hover/col:opacity-75 transition-opacity" />
+                              <span className="absolute bottom-2 left-2 right-2 text-white text-[10.5px] font-semibold tracking-wider uppercase">
+                                Explore →
                               </span>
                             </Link>
 
                             <Link
-                              to={`/product?category=${encodeURIComponent(category.name)}`}
+                              to={`/shop?category=${encodeURIComponent(category.name)}`}
                               onClick={() => setDesktopOpen(false)}
-                              className="text-[12px] font-bold tracking-[0.14em] uppercase text-charcoal group-hover/col:text-rust transition-colors pb-2 border-b border-[#E6DFD3]/70 flex items-center justify-between"
+                              className="text-[12px] font-bold tracking-[0.14em] uppercase text-charcoal group-hover/col:text-rust transition-colors pb-1.5 border-b border-[#E6DFD3]/70 flex items-center justify-between"
                             >
                               <span>{category.name}</span>
-                              <span className="text-[10px] text-rust opacity-0 group-hover/col:opacity-100 transition-opacity font-normal">→</span>
+                              <span className="text-[10px] text-rust opacity-0 group-hover/col:opacity-100 transition-opacity">
+                                →
+                              </span>
                             </Link>
+
                             <div className="flex flex-col gap-2">
                               {category.subcats.map((sub) => (
                                 <Link
                                   key={sub}
-                                  to={`/product?category=${encodeURIComponent(
+                                  to={`/shop?category=${encodeURIComponent(
                                     category.name
                                   )}&subcat=${encodeURIComponent(sub)}`}
                                   onClick={() => setDesktopOpen(false)}
-                                  className="text-[12px] font-normal tracking-[0.14em] uppercase text-charcoal/70 hover:text-rust hover:translate-x-1.5 transition-all duration-200 block normal-case py-0.5"
+                                  className="text-[12px] font-normal tracking-[0.06em] text-charcoal/70 hover:text-rust hover:translate-x-1 transition-all duration-200 block"
                                 >
                                   {sub}
                                 </Link>
@@ -170,10 +253,10 @@ export default function Navbar() {
                 <Link
                   key={item.label}
                   to={item.path}
-                  className={`px-4 py-1.5 rounded-full transition-all duration-300 ease-out ${
+                  className={`px-4 py-1.5 rounded-full transition-all duration-300 ease-out transform hover:-translate-y-0.5 active:scale-95 ${
                     isItemActive
-                      ? "bg-gradient-to-r from-[#F4EEE3] via-[#EFE6D5] to-[#F4EEE3] text-[#4A3228] font-bold border border-[#D6A23F]/50 shadow-[0_4px_16px_rgba(214,162,63,0.18)] -translate-y-0.5 scale-[1.02]"
-                      : "text-[#221D1B]/85 border border-transparent hover:border-[#E6DFD3] hover:bg-[#F4EEE3]/60 hover:text-[#BD5B34] hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-[0_4px_14px_rgba(34,29,27,0.06)]"
+                      ? "bg-gradient-to-r from-[#F4EEE3] via-[#EFE6D5] to-[#F4EEE3] text-[#4A3228] font-bold border border-[#D6A23F]/50 shadow-[0_4px_16px_rgba(214,162,63,0.18)]"
+                      : "text-[#221D1B]/85 hover:text-rust hover:bg-[#F4EEE3]/70 hover:shadow-xs border border-transparent hover:border-[#E6DFD3]/60"
                   }`}
                 >
                   {item.label}
@@ -182,169 +265,427 @@ export default function Navbar() {
             })}
           </div>
 
-          <div className="flex items-center gap-4 sm:gap-6 text-charcoal">
-            {searchOpen ? (
-              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 border border-rust/40 bg-white/90 shadow-sm px-3 py-1.5 rounded-full animate-fadeIn ring-2 ring-rust/10">
-                <input
-                  type="text"
-                  value={searchVal}
-                  onChange={(e) => setSearchVal(e.target.value)}
-                  placeholder="Search royal attire..."
-                  className="w-32 sm:w-48 text-xs outline-none bg-transparent text-charcoal placeholder:text-charcoal/40 font-normal"
-                  autoFocus
-                />
-                <button type="submit" className="text-rust hover:text-rust-deep transition-colors cursor-pointer p-0.5">
-                  <Search size={15} className="stroke-[2.2]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchOpen(false);
-                    setSearchVal("");
-                  }}
-                  className="text-charcoal/50 hover:text-rust transition-colors cursor-pointer p-0.5"
-                >
-                  <X size={15} className="stroke-[2.2]" />
-                </button>
-              </form>
-            ) : (
-              <button
-                title="Search"
-                className="hover:text-rust p-2 hover:bg-[#F4EEE3]/60 rounded-full transition-all duration-300 cursor-pointer text-charcoal/85 active:scale-95"
-                onClick={() => setSearchOpen(true)}
+          {/* Right Action Icons (Search, Profile, Wishlist, Bag, Hamburger) */}
+          <div className="flex items-center gap-1.5 sm:gap-4 text-charcoal shrink-0">
+            {/* Search Button */}
+            <button
+              title="Search Catalog"
+              className="hover:text-rust p-1.5 sm:p-2 hover:bg-[#F4EEE3]/60 rounded-full transition-colors cursor-pointer text-charcoal/80 flex items-center justify-center active:scale-95"
+              onClick={() => setSearchModalOpen(true)}
+            >
+              <Search size={19} className="stroke-[1.75]" />
+            </button>
+
+            {/* User Profile / Account Menu */}
+            {isAuthenticated ? (
+              <div
+                className="relative hidden sm:block"
+                onMouseEnter={handleUserEnter}
+                onMouseLeave={handleUserLeave}
               >
-                <Search size={19} className="stroke-[1.75]" />
-              </button>
+                <button
+                  onClick={() => navigate("/account/profile")}
+                  className="hover:text-rust py-1 px-2.5 hover:bg-[#F4EEE3]/80 rounded-full transition-all cursor-pointer text-charcoal/90 flex items-center gap-2 border border-[#E6DFD3]/80 active:scale-95 shadow-2xs"
+                  title="My Royal Account"
+                >
+                  <div className="w-6 h-6 rounded-full bg-rust text-white font-serif font-bold text-[11px] flex items-center justify-center shadow-xs">
+                    {(user?.firstName || user?.name || user?.email || "P").charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-[12px] font-semibold text-charcoal max-w-[100px] truncate">
+                    {user?.firstName || user?.name?.split(" ")[0] || "Account"}
+                  </span>
+                  <ChevronDown
+                    size={13}
+                    className={`transition-transform duration-200 text-charcoal/50 ${
+                      userMenuOpen ? "rotate-180 text-rust" : ""
+                    }`}
+                  />
+                </button>
+
+                {/* User Dropdown */}
+                <div
+                  className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 ${
+                    userMenuOpen
+                      ? "opacity-100 visible translate-y-0"
+                      : "opacity-0 invisible -translate-y-2 pointer-events-none"
+                  }`}
+                >
+                  <div className="bg-white border border-line rounded-sm shadow-xl p-2 text-xs">
+                    <div className="px-3 py-2 border-b border-line mb-1 bg-[#FAF7F2]/60 rounded-xs">
+                      <p className="font-serif font-bold text-sm text-charcoal truncate">
+                        {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : (user?.fullName || user?.name || user?.email?.split("@")[0] || "Patron")}
+                      </p>
+                      <p className="text-[11px] text-charcoal/50 truncate">{user?.email}</p>
+                    </div>
+
+                    {(user?.role === "ROLE_ADMIN" || user?.role === "ROLE_SUPERADMIN") && (
+                      <Link
+                        to="/admin/dashboard"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 text-[#800020] bg-[#800020]/5 font-bold hover:bg-[#800020]/10 rounded-xs transition-colors mb-1"
+                      >
+                        <span className="font-bold">Admin Dashboard</span>
+                      </Link>
+                    )}
+
+                    <Link
+                      to="/account/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-charcoal/80 hover:bg-cream-2 hover:text-rust rounded-xs transition-colors"
+                    >
+                      <User size={14} />
+                      <span>My Profile</span>
+                    </Link>
+
+                    <Link
+                      to="/account/orders"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-charcoal/80 hover:bg-cream-2 hover:text-rust rounded-xs transition-colors"
+                    >
+                      <Package size={14} />
+                      <span>My Orders</span>
+                    </Link>
+
+                    <Link
+                      to="/account/addresses"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-charcoal/80 hover:bg-cream-2 hover:text-rust rounded-xs transition-colors"
+                    >
+                      <MapPin size={14} />
+                      <span>Saved Addresses</span>
+                    </Link>
+
+                    <Link
+                      to="/account/wishlist"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-charcoal/80 hover:bg-cream-2 hover:text-rust rounded-xs transition-colors"
+                    >
+                      <Heart size={14} />
+                      <span>My Wishlist</span>
+                    </Link>
+
+                    <div className="border-t border-line mt-1 pt-1">
+                      <button
+                        onClick={() => {
+                          logout();
+                          setUserMenuOpen(false);
+                          navigate("/login");
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xs transition-colors text-left cursor-pointer font-medium"
+                      >
+                        <LogOut size={14} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-charcoal/90 hover:text-rust bg-[#FAF7F2] hover:bg-[#F4EEE3] border border-[#E6DFD3] hover:border-rust/40 transition-all shadow-2xs active:scale-95"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-white bg-rust hover:bg-rust-deep transition-all shadow-2xs active:scale-95"
+                >
+                  Register
+                </Link>
+              </div>
             )}
 
+
+            {/* Wishlist Button */}
             <button
               title="Wishlist"
-              className="relative hover:text-rust p-2 hover:bg-[#F4EEE3]/60 rounded-full transition-all duration-300 cursor-pointer text-charcoal/85 flex items-center active:scale-95 group"
+              className="relative hover:text-rust p-1.5 sm:p-2 hover:bg-[#F4EEE3]/60 rounded-full transition-colors cursor-pointer text-charcoal/80 flex items-center active:scale-95"
               onClick={() => setWishlistOpen(true)}
             >
-              <Heart size={19} className="stroke-[1.75] group-hover:scale-110 transition-transform duration-300" />
+              <Heart size={19} className="stroke-[1.75]" />
               {wishlist.size > 0 && (
-                <span className="absolute top-0.5 right-0.5 bg-gradient-to-r from-rust to-[#a45e35] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs ring-2 ring-[#FAF7F2] animate-bounce">
+                <span className="absolute top-0.5 right-0.5 bg-rust text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-[#FAF7F2]">
                   {wishlist.size}
                 </span>
               )}
             </button>
 
+            {/* Shopping Bag Button */}
             <button
               title="Bag"
               onClick={() => setDrawerOpen(true)}
-              className="relative hover:text-rust p-2 hover:bg-[#F4EEE3]/60 rounded-full transition-all duration-300 cursor-pointer text-charcoal/85 flex items-center active:scale-95 group"
+              className="relative hover:text-rust p-1.5 sm:p-2 hover:bg-[#F4EEE3]/60 rounded-full transition-colors cursor-pointer text-charcoal/80 flex items-center active:scale-95"
             >
-              <ShoppingBag size={19} className="stroke-[1.75] group-hover:scale-110 transition-transform duration-300" />
-              <span className="absolute top-0.5 right-0.5 bg-gradient-to-r from-rust to-[#a45e35] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs ring-2 ring-[#FAF7F2]">
-                {count}
-              </span>
+              <ShoppingBag size={19} className="stroke-[1.75]" />
+              {count > 0 && (
+                <span className="absolute top-0.5 right-0.5 bg-rust text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-[#FAF7F2]">
+                  {count}
+                </span>
+              )}
             </button>
 
+            {/* Mobile Menu Hamburger (Right Side) */}
             <button
-              className="lg:hidden cursor-pointer p-2 hover:bg-[#F4EEE3]/60 rounded-lg transition-colors text-charcoal/85 flex items-center"
-              onClick={() => {
-                setMobileOpen((v) => !v);
-                setMobileCollectionsOpen(false);
-                setMobileActiveCategory(null);
-              }}
+              className="lg:hidden p-2 hover:bg-[#F4EEE3] rounded-full text-charcoal cursor-pointer active:scale-95 ml-1 transition-colors"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open Navigation Menu"
             >
-              {mobileOpen ? <X size={22} className="stroke-[1.85]" /> : <Menu size={22} className="stroke-[1.85]" />}
+              <Menu size={22} className="stroke-[2]" />
             </button>
           </div>
         </nav>
+      </header>
 
-        {mobileOpen && (
-          <div className="lg:hidden flex flex-col px-6 pb-6 pt-3 gap-3 text-sm uppercase tracking-[0.1em] font-medium border-t border-[#E6DFD3]/80 bg-[#FAF7F2] shadow-xl animate-fadeIn">
-            {navItems.map((item) => (
-              item.isLogin ? (
-                <a 
-                  key={item.label} 
-                  href="#login"
-                  onClick={handleLoginClick} 
-                  className="py-2.5 px-4 rounded-md text-rust font-semibold hover:bg-[#F4EEE3]"
+      {/* Mobile Navigation Drawer (Rendered outside header to avoid backdrop-filter stacking issues) */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-[999] lg:hidden flex justify-end">
+          {/* Backdrop Overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-fadeIn"
+            onClick={() => setMobileOpen(false)}
+          />
+
+          {/* Drawer Container (Slides smoothly from Right) */}
+          <div className="relative w-[85vw] max-w-xs sm:max-w-sm bg-[#FAF7F2] h-full shadow-2xl flex flex-col justify-between z-10 border-l border-[#E6DFD3] animate-slideLeft">
+            {/* Drawer Top Header */}
+            <div className="p-4 border-b border-[#E6DFD3] flex items-center justify-between bg-white/90 backdrop-blur-xs">
+              <Link
+                to="/"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center"
+              >
+                <img
+                  src="/shreekamalineeLogo.png"
+                  alt="Shreekamalinee Logo"
+                  className="h-10 sm:h-12 w-auto object-contain"
+                />
+              </Link>
+
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="p-2 text-charcoal/70 hover:text-charcoal hover:bg-[#FAF7F2] rounded-full transition-colors cursor-pointer"
+                aria-label="Close menu"
+              >
+                <X size={20} className="stroke-[2]" />
+              </button>
+            </div>
+
+            {/* Drawer Scrollable Content */}
+            <div className="p-4 flex-1 overflow-y-auto space-y-4">
+              {/* In-Drawer Quick Search */}
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  setSearchModalOpen(true);
+                }}
+                className="w-full py-2.5 px-3.5 bg-white border border-[#E6DFD3] rounded-full flex items-center gap-2.5 text-xs text-charcoal/70 shadow-xs hover:border-[#D6A23F] transition-colors"
+              >
+                <Search size={14} className="text-rust" />
+                <span>Search Sarees, Weaves, SKU...</span>
+              </button>
+
+              {/* Navigation Links */}
+              <div className="space-y-1.5 pt-1">
+                {/* Home */}
+                <Link
+                  to="/"
+                  onClick={() => setMobileOpen(false)}
+                  className={`block py-2.5 px-3.5 rounded-full uppercase tracking-[0.12em] text-xs font-bold transition-all ${
+                    location.pathname === "/"
+                      ? "bg-gradient-to-r from-[#F4EEE3] via-[#EFE6D5] to-[#F4EEE3] text-rust border border-[#D6A23F]/50 shadow-xs"
+                      : "text-charcoal hover:bg-[#F4EEE3]/60"
+                  }`}
                 >
-                  {item.label}
-                </a>
-              ) : item.isMega ? (
-                <div key={item.label} className="flex flex-col">
-                  <button 
-                    onClick={() => {
-                      setMobileCollectionsOpen(!mobileCollectionsOpen);
-                      setMobileActiveCategory(null);
-                    }}
-                    className="flex items-center justify-between py-2.5 px-4 rounded-md w-full text-left uppercase tracking-[0.1em] font-medium text-charcoal hover:bg-[#F4EEE3] hover:text-rust cursor-pointer transition-colors"
+                  Home
+                </Link>
+
+                {/* Collections Accordion */}
+                <div className="border-t border-b border-[#E6DFD3]/70 py-1">
+                  <button
+                    onClick={() => setMobileCollectionsOpen(!mobileCollectionsOpen)}
+                    className="flex items-center justify-between w-full py-2 px-3 uppercase tracking-[0.12em] text-xs font-bold text-charcoal cursor-pointer"
                   >
-                    <span>{item.label}</span>
-                    <ChevronDown size={16} className={`transform transition-transform duration-300 ${mobileCollectionsOpen ? "rotate-180 text-rust" : ""}`} />
+                    <span>Collections</span>
+                    <ChevronDown
+                      size={15}
+                      className={`transform transition-transform duration-200 ${
+                        mobileCollectionsOpen ? "rotate-180 text-rust" : "text-charcoal/60"
+                      }`}
+                    />
                   </button>
-                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${mobileCollectionsOpen ? "max-h-[1000px] opacity-100 my-2" : "max-h-0 opacity-0"}`}>
-                    <div className="pl-4 pr-2 border-l-2 border-rust/30 flex flex-col gap-3 py-2 ml-4 bg-[#F4EEE3]/40 rounded-r-md">
-                      {COLLECTION_CATEGORIES.map((category) => {
+
+                  {mobileCollectionsOpen && (
+                    <div className="pl-3 pr-1 py-2 space-y-2.5 border-l-2 border-rust/40 ml-3 bg-[#F4EEE3]/40 rounded-r-md">
+                      {navCategories.map((category) => {
                         const isCatOpen = mobileActiveCategory === category.name;
                         return (
-                          <div key={category.name} className="flex flex-col border-b border-[#E6DFD3]/50 pb-2.5 last:border-b-0 last:pb-0">
+                          <div
+                            key={category.name}
+                            className="border-b border-[#E6DFD3]/50 pb-2 last:border-b-0 last:pb-0"
+                          >
                             <button
-                              onClick={() => setMobileActiveCategory(isCatOpen ? null : category.name)}
-                              className="flex items-center justify-between w-full text-left py-1 text-xs font-bold tracking-wider uppercase text-rust hover:text-rust-deep cursor-pointer"
+                              onClick={() =>
+                                setMobileActiveCategory(
+                                  isCatOpen ? null : category.name
+                                )
+                              }
+                              className="flex items-center justify-between w-full text-left py-1 text-xs font-bold uppercase text-rust cursor-pointer"
                             >
                               <span>{category.name}</span>
-                              <ChevronDown size={14} className={`transform transition-transform duration-200 ${isCatOpen ? "rotate-180" : ""}`} />
+                              <ChevronDown
+                                size={13}
+                                className={`transform transition-transform duration-200 ${
+                                  isCatOpen ? "rotate-180" : ""
+                                }`}
+                              />
                             </button>
-                            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isCatOpen ? "max-h-[500px] opacity-100 mt-2 mb-1" : "max-h-0 opacity-0"}`}>
-                              <div className="flex flex-col gap-2 pl-3 border-l border-[#E6DFD3]">
+
+                            {isCatOpen && (
+                              <div className="pl-3 py-1.5 space-y-2 border-l border-[#D6A23F]/40 mt-1.5">
                                 <Link
-                                  to={`/product?category=${encodeURIComponent(category.name)}`}
-                                  onClick={() => {
-                                    setMobileOpen(false);
-                                    setMobileCollectionsOpen(false);
-                                    setMobileActiveCategory(null);
-                                  }}
-                                  className="text-xs text-rust font-semibold hover:text-rust-deep block normal-case py-0.5"
+                                  to={`/shop?category=${encodeURIComponent(
+                                    category.name
+                                  )}`}
+                                  onClick={() => setMobileOpen(false)}
+                                  className="text-[11.5px] text-rust font-bold uppercase tracking-wider block hover:underline"
                                 >
-                                  View All {category.name} →
+                                  • View All {category.name} →
                                 </Link>
                                 {category.subcats.map((sub) => (
                                   <Link
                                     key={sub}
-                                    to={`/product?category=${encodeURIComponent(category.name)}&subcat=${encodeURIComponent(sub)}`}
-                                    onClick={() => {
-                                      setMobileOpen(false);
-                                      setMobileCollectionsOpen(false);
-                                      setMobileActiveCategory(null);
-                                    }}
-                                    className="text-xs text-charcoal/80 hover:text-rust block normal-case font-normal py-0.5 transition-colors"
+                                    to={`/shop?category=${encodeURIComponent(
+                                      category.name
+                                    )}&subcat=${encodeURIComponent(sub)}`}
+                                    onClick={() => setMobileOpen(false)}
+                                    className="text-[11.5px] font-medium text-charcoal/80 hover:text-rust block py-0.5 transition-colors"
                                   >
                                     {sub}
                                   </Link>
                                 ))}
                               </div>
-                            </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-                  </div>
+                  )}
                 </div>
-              ) : (
+
+                {/* About */}
                 <Link
-                  key={item.label}
-                  to={item.path}
+                  to="/about"
                   onClick={() => setMobileOpen(false)}
-                  className={`py-2.5 px-4 rounded-md flex items-center justify-between transition-all duration-300 ${
-                    location.pathname === item.path
-                      ? "bg-[#F4EEE3] text-[#4A3228] font-bold border-l-4 border-[#BD5B34] shadow-xs"
-                      : "text-charcoal font-medium hover:bg-[#F4EEE3] hover:text-[#4A3228] hover:translate-x-1"
+                  className={`block py-2.5 px-3.5 rounded-full uppercase tracking-[0.12em] text-xs font-bold transition-all ${
+                    location.pathname === "/about"
+                      ? "bg-gradient-to-r from-[#F4EEE3] via-[#EFE6D5] to-[#F4EEE3] text-rust border border-[#D6A23F]/50 shadow-xs"
+                      : "text-charcoal hover:bg-[#F4EEE3]/60"
                   }`}
                 >
-                  <span>{item.label}</span>
-                  {location.pathname === item.path && <span className="text-rust text-xs">✦</span>}
+                  About
                 </Link>
-              )
-            ))}
+
+                {/* Contact */}
+                <Link
+                  to="/contact"
+                  onClick={() => setMobileOpen(false)}
+                  className={`block py-2.5 px-3.5 rounded-full uppercase tracking-[0.12em] text-xs font-bold transition-all ${
+                    location.pathname === "/contact"
+                      ? "bg-gradient-to-r from-[#F4EEE3] via-[#EFE6D5] to-[#F4EEE3] text-rust border border-[#D6A23F]/50 shadow-xs"
+                      : "text-charcoal hover:bg-[#F4EEE3]/60"
+                  }`}
+                >
+                  Contact
+                </Link>
+              </div>
+            </div>
+
+            {/* Drawer Footer (Account & Quick Help) */}
+            <div className="p-4 border-t border-[#E6DFD3] bg-white space-y-2.5">
+              {isAuthenticated ? (
+                <div className="space-y-1.5">
+                  <div className="px-3 py-2 bg-[#FAF7F2] border border-[#E6DFD3] rounded-sm text-xs mb-2">
+                    <p className="font-bold text-charcoal truncate">
+                      {user?.firstName
+                        ? `${user.firstName} ${user.lastName || ""}`
+                        : user?.email || "Patron"}
+                    </p>
+                    <p className="text-[10.5px] text-charcoal/50 truncate">
+                      {user?.email}
+                    </p>
+                  </div>
+
+                  {(user?.role === "ROLE_ADMIN" || user?.role === "ROLE_SUPERADMIN") && (
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setMobileOpen(false)}
+                      className="py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-bold text-rust bg-rust/5 hover:bg-rust/10"
+                    >
+                      <User size={14} />
+                      <span>Admin Dashboard</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    to="/account/profile"
+                    onClick={() => setMobileOpen(false)}
+                    className="py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-medium text-charcoal/80 hover:bg-[#F4EEE3]"
+                  >
+                    <User size={14} />
+                    <span>My Profile</span>
+                  </Link>
+
+                  <Link
+                    to="/account/orders"
+                    onClick={() => setMobileOpen(false)}
+                    className="py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-medium text-charcoal/80 hover:bg-[#F4EEE3]"
+                  >
+                    <Package size={14} />
+                    <span>My Orders</span>
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileOpen(false);
+                      navigate("/login");
+                    }}
+                    className="w-full text-left py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                  >
+                    <LogOut size={14} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="block w-full py-2.5 text-center bg-rust text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-xs hover:bg-rust-deep transition-colors"
+                  >
+                    Login / Sign In
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileOpen(false)}
+                    className="block w-full py-2 text-center border border-line text-charcoal font-semibold rounded-full uppercase tracking-wider text-xs bg-white hover:bg-cream-2 transition-colors"
+                  >
+                    Create Account
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </header>
+        </div>
+      )}
+
+      {/* Global Search Modal Overlay */}
+      <SearchModal
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+      />
     </>
   );
 }
