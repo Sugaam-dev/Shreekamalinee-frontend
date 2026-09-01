@@ -6,35 +6,35 @@ export default function Hero() {
   const slides = [
     {
       categoryTag: "Heritage Saree Collection",
-      image: "https://t4.ftcdn.net/jpg/01/67/25/37/360_F_167253732_FVaF7PyA5vat3JVPvP4F5AsCoZkYAnZF.jpg",
+      image: "/images/hero/hero-handloom-sarees.jpg",
       title: "Timeless Handloom Sarees",
       subtitle: "Exquisite Paithani, Maheshwari & Kota Doriya weaves crafted for royal elegance.",
       cta: "Explore Sarees",
-      link: "/product?category=Sarees"
+      link: "/shop?category=Sarees"
     },
     {
       categoryTag: "Unstitched Elegance",
-      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSM5sbrA3H_wvBXbKNMLeNMMjXiSMkZCk2J0cePvIn7WD2mtTCLykACV6A&s=10",
+      image: "/images/hero/hero-dress-materials.jpg",
       title: "Pure Handcrafted Dress Materials",
-      subtitle: "Tailor your custom fit with authentic Ikat, Jamdani & Kota Doriya cotton suits.",
+      subtitle: "Authentic Ikat, Jamdani & Kota Doriya handcrafted cotton suit fabrics.",
       cta: "Shop Dress Material",
-      link: "/product?category=Dress%20Material"
+      link: "/shop?category=Dress%20Material"
     },
     {
       categoryTag: "Contemporary Wear",
-      image: "https://thumbs.dreamstime.com/b/fashion-clothes-21701906.jpg",
+      image: "/images/hero/hero-readymade-ensembles.jpg",
       title: "Ready-To-Wear Designer Ensembles",
-      subtitle: "Effortless style and comfort with tailored tops, kurtis with dupatta, and one-piece drapes.",
+      subtitle: "Effortless elegance and comfort with designer tops, kurtis with dupatta, and one-piece drapes.",
       cta: "Shop Readymades",
-      link: "/product?category=Readymade"
+      link: "/shop?category=Readymade"
     },
     {
       categoryTag: "Ethnic Accents",
-      image: "https://t4.ftcdn.net/jpg/01/10/24/33/360_F_110243334_UHbWD6dt3evUcgr5Jf3aOWxMBuU3Q08k.jpg",
+      image: "/images/hero/hero-heritage-accessories.jpg",
       title: "Handcrafted Heritage Accessories",
       subtitle: "Complete your look with luxury sling bags, Paithani clutches, and embroidered pouches.",
       cta: "Shop Accessories",
-      link: "/product?category=Accessories"
+      link: "/shop?category=Accessories"
     }
   ];
 

@@ -65,7 +65,9 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: authApi.login,
     onSuccess: (userData) => {
-      // Invalidate and immediately set current user in React Query memory cache
+      if (typeof window !== "undefined" && userData) {
+        localStorage.setItem("shreekamalinee_user_cache", JSON.stringify(userData));
+      }
       queryClient.setQueryData(AUTH_KEYS.currentUser, userData);
     },
   });
@@ -85,6 +87,9 @@ export function useVerifyOtpMutation() {
   return useMutation({
     mutationFn: authApi.verifyOtp,
     onSuccess: (userData) => {
+      if (typeof window !== "undefined" && userData) {
+        localStorage.setItem("shreekamalinee_user_cache", JSON.stringify(userData));
+      }
       queryClient.setQueryData(AUTH_KEYS.currentUser, userData);
     },
   });
@@ -111,6 +116,9 @@ export function useGoogleAuthMutation() {
   return useMutation({
     mutationFn: authApi.googleAuthenticate,
     onSuccess: (userData) => {
+      if (typeof window !== "undefined" && userData) {
+        localStorage.setItem("shreekamalinee_user_cache", JSON.stringify(userData));
+      }
       queryClient.setQueryData(AUTH_KEYS.currentUser, userData);
     },
   });
@@ -123,7 +131,9 @@ export function useLogoutMutation() {
   return useMutation({
     mutationFn: authApi.logout,
     onSettled: () => {
-      // Clear current user cache on logout
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("shreekamalinee_user_cache");
+      }
       queryClient.setQueryData(AUTH_KEYS.currentUser, null);
       queryClient.setQueryData(AUTH_KEYS.userProfile, null);
       queryClient.clear();

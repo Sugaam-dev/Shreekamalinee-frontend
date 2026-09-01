@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import LoadingSpinner from "../components/ui/LoadingSpinner.jsx";
 
 export default function AdminRoute({ children }) {
-  const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const location = useLocation();
 
   if (isLoading) {

@@ -3,9 +3,14 @@ import { useCart } from "../../context/CartContext.jsx";
 import { ShoppingBag, Heart, Sparkles, X } from "lucide-react";
 
 export default function Toast() {
-  const { toast = { show: false, msg: "", type: "info" }, setToast } = useCart();
+  const { toast = { show: false, msg: "", type: "info" }, showToast } = useCart();
 
   if (!toast?.show) return null;
+
+  const handleClose = () => {
+    // Use showToast with empty message for 0ms to immediately dismiss
+    showToast("", "info");
+  };
 
   return (
     <AnimatePresence>
@@ -16,6 +21,9 @@ export default function Toast() {
           exit={{ opacity: 0, y: -15, scale: 0.95, x: "-50%" }}
           transition={{ type: "spring", stiffness: 380, damping: 26 }}
           className="fixed top-5 left-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-[300] max-w-[90vw] w-[350px] pointer-events-auto"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
         >
           <div className="relative overflow-hidden bg-charcoal/95 backdrop-blur-md text-cream p-4 rounded-xl border border-mustard/35 shadow-[0_12px_35px_rgba(0,0,0,0.55)] flex items-center gap-3.5">
             {/* Animated Left Accent Gold & Rust Bar */}
@@ -46,9 +54,10 @@ export default function Toast() {
 
             {/* Close Button */}
             <button
-              onClick={() => setToast && setToast((prev) => ({ ...prev, show: false }))}
+              onClick={handleClose}
               className="text-white/40 hover:text-white transition-colors p-1.5 cursor-pointer shrink-0 rounded-full hover:bg-white/10"
               title="Close notification"
+              aria-label="Dismiss notification"
             >
               <X className="w-3.5 h-3.5" />
             </button>

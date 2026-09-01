@@ -20,8 +20,8 @@ export default function CategoryCarousel({ cat }) {
 
       <Swiper
         modules={[Autoplay, Pagination]}
-        spaceBetween={16}
-        slidesPerView={1.25}
+        spaceBetween={14}
+        slidesPerView={1.5}
         autoplay={{
           delay: 3500,
           disableOnInteraction: false,
@@ -30,18 +30,30 @@ export default function CategoryCarousel({ cat }) {
         pagination={{
           clickable: true,
         }}
-        loop={N > 3}
+        loop={N > 4}
         breakpoints={{
-          640: {
+          480: {
             slidesPerView: 2,
+            spaceBetween: 14,
+          },
+          640: {
+            slidesPerView: 2.5,
+            spaceBetween: 16,
+          },
+          768: {
+            slidesPerView: 3.2,
             spaceBetween: 16,
           },
           1024: {
-            slidesPerView: 3,
-            spaceBetween: 24,
+            slidesPerView: 4,
+            spaceBetween: 18,
+          },
+          1280: {
+            slidesPerView: 4.5,
+            spaceBetween: 20,
           },
         }}
-        className="w-full"
+        className="w-full pb-8"
       >
         {subcats.map((sp) => {
           const isAllSoldOut = sp.products?.length > 0 && sp.products.every((p) => p.isSoldOut);

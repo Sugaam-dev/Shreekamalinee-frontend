@@ -42,6 +42,12 @@ export const orderApi = {
     return response.data;
   },
 
+  // 6b. Book WhatsApp / Manual Order (Admin)
+  createAdminManualOrder: async (payload) => {
+    const response = await apiClient.post("/api/v1/admin/orders/manual", payload);
+    return response.data;
+  },
+
   // 7. Get Manual Payment Receipt Preview URL (Admin)
   getPaymentReceiptUrl: (orderId) => {
     return `${apiClient.defaults.baseURL || ""}/api/v1/admin/orders/${orderId}/receipt`;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useLocation, useNavigate, Link } from "react-router-dom";
-import { ShieldCheck, ArrowRight, RotateCw, AlertCircle, Mail, ArrowLeft } from "lucide-react";
+import { ArrowRight, RotateCw, AlertCircle, Mail, ArrowLeft } from "lucide-react";
 import { useVerifyOtpMutation } from "../../queries/useAuthQueries.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
@@ -86,7 +86,7 @@ export default function VerifyOtpPage() {
       });
 
       setUserSession(response);
-      showToast("Patron account verified successfully! Welcome to Shree Kamalinee.", "success");
+      showToast("Patron account verified successfully! Welcome to Shreekamalinee.", "success");
       navigate("/account/profile", { replace: true });
     } catch (err) {
       const msg =

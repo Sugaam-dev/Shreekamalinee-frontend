@@ -155,12 +155,12 @@ export default function AdminLayout({ children, title, subtitle, actions }) {
             <Link to="/admin/dashboard" className="flex items-center gap-2.5">
               <img
                 src="/shreekamalineeLogo.png"
-                alt="Shree Kamalinee Admin"
+                alt="Shreekamalinee Admin"
                 className="h-9 w-auto object-contain brightness-200"
               />
               <div>
                 <span className="font-serif font-bold text-sm tracking-wider block text-white leading-tight">
-                  SHREE KAMALINEE
+                  SHREEKAMALINEE
                 </span>
                 <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-[#B8860B] block">
                   Admin Portal

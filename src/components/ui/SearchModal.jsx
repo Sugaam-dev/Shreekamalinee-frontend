@@ -286,14 +286,14 @@ export default function SearchModal({ isOpen, onClose }) {
                         <img
                           src={cat.imageUrl || cat.image || "/images/placeholder-saree.jpg"}
                           alt={cat.name}
-                          className="w-10 h-10 object-cover rounded-xs"
+                          className="w-10 h-10 object-cover rounded-xs shrink-0"
                         />
-                        <div>
-                          <strong className="text-xs text-charcoal group-hover:text-rust transition-colors block">
+                        <div className="min-w-0">
+                          <strong className="text-xs text-charcoal group-hover:text-rust transition-colors block truncate">
                             {cat.name}
                           </strong>
-                          <span className="text-[10px] text-charcoal/50">
-                            {Array.isArray(cat.subcategories) ? cat.subcategories.length : 0} Weaves
+                          <span className="text-[10px] text-rust font-semibold">
+                            Explore →
                           </span>
                         </div>
                       </Link>

@@ -49,7 +49,7 @@ export default function Story() {
 
           <div className="pt-2">
             <Link
-              to="/product"
+              to="/shop"
               className="inline-flex items-center gap-2 px-7 py-3.5 text-[12px] tracking-[0.12em] uppercase font-semibold border border-charcoal bg-charcoal text-cream hover:bg-rust hover:border-rust transition-colors cursor-pointer rounded-xs shadow-xs"
             >
               <span>Explore The Collection</span>

@@ -123,7 +123,7 @@ export default function AdminOrderDetailsPage() {
 
   return (
     <AdminLayout
-      title={`Order #${order.id?.slice(0, 8).toUpperCase()}`}
+      title={`Order ${order.orderNumber || `#${order.id?.slice(0, 8).toUpperCase()}`}`}
       subtitle={`Placed on ${formatDate(order.createdAt)}`}
       actions={
         <Button
@@ -293,6 +293,8 @@ export default function AdminOrderDetailsPage() {
                         <span>Color: {item.color || "Standard"}</span>
                         <span>•</span>
                         <span>Qty: {item.quantity}</span>
+                        <span>•</span>
+                        <span>{formatCurrency(item.price)} each</span>
                       </div>
                     </div>
                     <span className="font-bold text-gray-900">
@@ -305,22 +307,36 @@ export default function AdminOrderDetailsPage() {
               {/* Total Calculation breakdown */}
               <div className="border-t border-gray-200 pt-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(order.subtotal)}</span>
+                  <span>Items Subtotal (Product Price)</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(order.totalAmount ?? order.subtotal ?? 0)}</span>
                 </div>
                 {order.discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-700">
-                    <span>Discount ({order.couponCode || "COUPON"})</span>
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span>Coupon Savings ({order.couponCode || "COUPON"})</span>
                     <span>-{formatCurrency(order.discountAmount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
-                  <span>Delivery Fee</span>
-                  <span>{order.deliveryFee === 0 ? "FREE" : formatCurrency(order.deliveryFee)}</span>
+                  <span>Delivery & Courier Packaging</span>
+                  <span className="font-medium text-gray-900">
+                    {Number(order.shippingFee ?? order.deliveryFee ?? 0) === 0 ? "FREE" : formatCurrency(order.shippingFee ?? order.deliveryFee)}
+                  </span>
                 </div>
+                {Number(order.codHandlingFee) > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>COD Verification Fee</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(order.codHandlingFee)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-sm text-gray-900 border-t border-gray-200 pt-2">
-                  <span>Total Paid</span>
-                  <span className="text-[#800020]">{formatCurrency(order.totalAmount)}</span>
+                  <span>Net Total Amount</span>
+                  <span className="text-[#800020] text-base">
+                    {formatCurrency(
+                      order.finalAmount != null
+                        ? order.finalAmount
+                        : Number(order.totalAmount || 0) - Number(order.discountAmount || 0) + Number(order.shippingFee || 0) + Number(order.codHandlingFee || 0)
+                    )}
+                  </span>
                 </div>
               </div>
             </div>

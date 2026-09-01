@@ -14,17 +14,15 @@ import {
   Check,
   Smartphone,
   User,
+  MessageCircle,
 } from "lucide-react";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import { useCart } from "../../context/CartContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { formatCurrency } from "../../utils/formatters.js";
-import {
-  useBankDetailsQuery,
-  useSubmitManualPaymentMutation,
-  useUserOrderDetailQuery,
-} from "../../queries/useOrderQueries.js";
+import { useBankDetailsQuery, useSubmitManualPaymentMutation, useUserOrderDetailQuery } from "../../queries/useOrderQueries.js";
+import { validatePaymentDocument, ACCEPT_PAYMENT_DOC_STRING } from "../../utils/fileValidation.js";
 import Breadcrumb from "../../components/common/Breadcrumb.jsx";
 
 export default function PaymentPage({ onComplete }) {
@@ -125,18 +123,10 @@ export default function PaymentPage({ onComplete }) {
   const handleFileSelect = (selectedFile) => {
     if (!selectedFile) return;
 
-    // Validate size (max 10MB)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, file: "File size exceeds 10MB limit." }));
-      showToast("File is too large. Maximum size is 10MB.", "warning");
-      return;
-    }
-
-    // Validate type
-    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"];
-    if (!validTypes.includes(selectedFile.type)) {
-      setErrors((prev) => ({ ...prev, file: "Please upload an image (JPG, PNG, WebP) or PDF slip." }));
-      showToast("Unsupported file format.", "warning");
+    const validation = validatePaymentDocument(selectedFile);
+    if (!validation.valid) {
+      setErrors((prev) => ({ ...prev, file: validation.error }));
+      showToast(validation.error, "warning");
       return;
     }
 
@@ -245,27 +235,69 @@ export default function PaymentPage({ onComplete }) {
   }
 
   function sendWhatsAppOrder(paymentStatus, utrNumber = "") {
-    const itemsText = cart
-      .map((item) => `- *${item.name}* x ${item.qty} (${formatCurrency(item.price * item.qty)})`)
-      .join("\n");
+    // 1. Resolve Items Text
+    let itemsList = [];
+    if (orderDetails?.items && orderDetails.items.length > 0) {
+      itemsList = orderDetails.items.map((item) => {
+        const pName = item.productName || item.name || "Handloom Saree";
+        const variantInfo = [
+          item.size ? `Size: ${item.size}` : "",
+          item.color ? `Color: ${item.color}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return `• *${pName}* (Qty: ${item.quantity || item.qty || 1}${
+          variantInfo ? `, ${variantInfo}` : ""
+        }) — ${formatCurrency((item.price || 0) * (item.quantity || item.qty || 1))}`;
+      });
+    } else if (cart && cart.length > 0) {
+      itemsList = cart.map((item) => {
+        const variantInfo = [
+          item.selectedSize ? `Size: ${item.selectedSize}` : "",
+          item.color ? `Color: ${item.color}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return `• *${item.name}* (Qty: ${item.qty}${
+          variantInfo ? `, ${variantInfo}` : ""
+        }) — ${formatCurrency((item.price || 0) * item.qty)}`;
+      });
+    }
 
-    const message = `🌸 *Shreekamalinee Studio - Order Proof Submission* 🌸
+    const itemsFormatted = itemsList.length > 0 ? itemsList.join("\n") : "• Authentic Handloom Saree Ensemble — " + formatCurrency(totalAmount);
+
+    const orderRef = orderDetails?.orderNumber || (orderId ? (orderId.startsWith("SK-") ? orderId : `#${orderId.substring(0, 8).toUpperCase()}`) : "SK-PENDING");
+    const subtotalVal = Number(orderDetails?.totalAmount ?? orderDetails?.subtotal ?? totalAmount);
+    const discountVal = Number(orderDetails?.discountAmount || 0);
+
+    const rawStorePhone = bankDetails?.whatsappNumber || bankDetails?.contactPhone || "919820785210";
+    const cleanStorePhone = rawStorePhone.replace(/\D/g, "");
+
+    const message = `🌸 *Shreekamalinee Studio — Payment & Order Verification* 🌸
 -----------------------------------------
-👤 *Customer Name:* ${form.name.trim()}
-📞 *Phone Number:* ${form.phone.trim()}
+⚠️ *IMPORTANT SECURITY NOTICE:*
+Please do NOT modify your Registered Account Email or Order Reference below. Any alteration will cause automated payment audit failure.
+-----------------------------------------
+👑 *Customer Name:* ${form.name.trim()}
+📧 *Registered Account Email:* ${user?.email || "On File"}
+📱 *Phone Number:* ${form.phone.trim()}
 📍 *Delivery Address:* ${form.address.trim() || "On File"}
 
-🛍️ *Order Items:*
-${itemsText || "Direct Checkout Order"}
+🛍️ *Order Items (${itemsList.length || 1}):*
+${itemsFormatted}
+
+💰 *Pricing Breakdown:*
+• Items Subtotal: ${formatCurrency(subtotalVal)}
+${discountVal > 0 ? `• Coupon Savings (${orderDetails?.couponCode || "VOUCHER"}): -${formatCurrency(discountVal)}\n` : ""}• Insured Delivery: FREE
 -----------------------------------------
-💰 *Grand Total:* ${formatCurrency(totalAmount)}
-💳 *Payment Method:* ${paymentStatus}${utrNumber ? `\n🔢 *UTR/Ref ID:* \`${utrNumber.trim()}\`` : ""}
-${orderId ? `📦 *Order ID:* #${orderId}` : ""}
+💎 *Net Total Paid:* ${formatCurrency(totalAmount)}
+💳 *Payment Mode:* ${paymentStatus}${utrNumber ? `\n🔢 *UTR/Ref ID:* \`${utrNumber.trim()}\`` : ""}
+🔖 *Order Reference:* *${orderRef}*
 -----------------------------------------
-Please confirm receipt and dispatch schedule.`;
+Kindly verify receipt and dispatch schedule. Thank you!`;
 
     const encodedText = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/919820785210?text=${encodedText}`;
+    const whatsappUrl = `https://wa.me/${cleanStorePhone}?text=${encodedText}`;
 
     showToast("Opening WhatsApp Concierge...", "info");
     window.open(whatsappUrl, "_blank");
@@ -658,18 +690,20 @@ Please confirm receipt and dispatch schedule.`;
                       <Upload size={18} />
                     </div>
                     <span className="text-xs font-bold text-charcoal block mb-0.5">
-                      Click to upload or drag & drop slip
+                      Click to upload or drag & drop payment proof
                     </span>
-                    <span className="text-[11px] text-charcoal/50 block">
-                      PNG, JPG, WebP, PDF (Max size: 10MB)
-                    </span>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/80 border border-line rounded text-[10px] text-charcoal/70 font-medium mt-1">
+                      <span>PNG, JPG, WebP, GIF, PDF</span>
+                      <span>•</span>
+                      <span>Max 10 MB</span>
+                    </div>
                   </div>
                 )}
 
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/jpg,application/pdf"
+                  accept={ACCEPT_PAYMENT_DOC_STRING}
                   onChange={(e) => handleFileSelect(e.target.files?.[0])}
                   className="hidden"
                 />
@@ -708,10 +742,10 @@ Please confirm receipt and dispatch schedule.`;
                 <button
                   type="button"
                   onClick={handleCODOrder}
-                  className="w-full py-2.5 bg-cream-2/60 hover:bg-cream-2 border border-line text-charcoal text-xs tracking-wider uppercase font-bold rounded-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-gradient-to-r from-[#20ba5a] to-[#25D366] hover:from-[#1da750] hover:to-[#22c35e] text-white text-xs tracking-wider uppercase font-bold rounded-xs transition-all shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center gap-2 border border-white/20"
                 >
-                  <Smartphone size={14} className="text-emerald-700" />
-                  <span>Verify via WhatsApp Concierge</span>
+                  <MessageCircle size={15} className="text-white fill-white" />
+                  <span>Verify via WhatsApp Concierge (1-Click)</span>
                 </button>
               </div>
             </form>

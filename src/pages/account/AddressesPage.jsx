@@ -11,10 +11,12 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
 import AccountLayout from "../../components/layout/AccountLayout.jsx";
 import AddressCard from "../../components/cards/AddressCard.jsx";
-import Button from "../../components/common/Button.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import useSEO from "../../hooks/useSEO.js";
 import { INDIAN_STATES } from "../../utils/constants.js";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
+import { validators } from "../../utils/validation.js";
 
 export default function AddressesPage() {
 
@@ -124,18 +126,23 @@ export default function AddressesPage() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.phone || !form.addressLine1 || !form.pincode) {
+    const phoneError = validators.phone(form.phone);
+    if (phoneError) {
+      showToast(phoneError, "warning");
+      return;
+    }
+
+    if (!form.name || !form.addressLine1 || !form.pincode) {
       showToast("Please fill all mandatory fields", "warning");
       return;
     }
 
-    const cleanPhone = form.phone.trim().replace(/\D/g, "");
-    const formattedPhone = cleanPhone.length === 10 ? cleanPhone : cleanPhone.slice(-10);
+    const cleanPhone = form.phone.replace(/[^\d+]/g, "").trim();
 
     const payload = {
       fullName: form.name.trim(),
-      phone: formattedPhone,
-      phoneNumber: formattedPhone,
+      phone: cleanPhone,
+      phoneNumber: cleanPhone,
       streetAddress: (form.addressLine1.trim() + (form.addressLine2 ? `, ${form.addressLine2.trim()}` : "")).trim(),
       addressLine1: form.addressLine1.trim(),
       addressLine2: form.addressLine2 ? form.addressLine2.trim() : "",
@@ -258,20 +265,16 @@ export default function AddressesPage() {
               <label className="block text-xs uppercase font-bold tracking-wider text-charcoal mb-1">
                 Mobile Number *
               </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-charcoal/50">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  required
-                  maxLength={10}
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "") })}
-                  placeholder="9876543210"
-                  className="w-full pl-12 pr-3.5 py-2.5 text-xs border border-line rounded-xs bg-white outline-none focus:border-rust font-medium"
-                />
-              </div>
+              <PhoneInput
+                defaultCountry="in"
+                value={form.phone}
+                onChange={(phone) => setForm({ ...form, phone })}
+                className="w-full text-xs"
+                inputClassName="!w-full !py-2.5 !px-3.5 !text-xs !bg-white !border-line !rounded-r-xs !font-medium !text-charcoal focus:!border-rust"
+                countrySelectorStyleProps={{
+                  buttonClassName: "!bg-gray-50 !border-line !rounded-l-xs !px-2.5",
+                }}
+              />
             </div>
           </div>
 

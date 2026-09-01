@@ -100,6 +100,22 @@ export function useRejectManualPaymentMutation() {
   });
 }
 
+// 6b. Admin Manual / WhatsApp Order Booking Mutation
+export function useCreateAdminManualOrderMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload) => orderApi.createAdminManualOrder(payload),
+    onSuccess: (newOrder) => {
+      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.adminList });
+      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.adminStats });
+      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["coupons"] });
+    },
+  });
+}
+
 // 7. Customer Storefront User Orders Query
 export function useUserOrdersQuery() {
   return useQuery({

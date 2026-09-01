@@ -25,6 +25,7 @@ import AdminLayout from "../../components/admin/AdminLayout.jsx";
 import Button from "../../components/common/Button.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import { TableRowSkeleton } from "../../components/common/Skeleton.jsx";
+import { validateImageFile, ACCEPT_IMAGE_STRING } from "../../utils/fileValidation.js";
 
 export default function AdminProductsPage() {
   const navigate = useNavigate();
@@ -43,6 +44,13 @@ export default function AdminProductsPage() {
 
   const handleImageUpload = async (productId, file) => {
     if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
+      return;
+    }
+
     try {
       await uploadImageMutation.mutateAsync({ id: productId, file });
       showToast("Gallery image uploaded successfully!", "success");
@@ -249,9 +257,14 @@ export default function AdminProductsPage() {
                             <Upload size={13} />
                             <input
                               type="file"
-                              accept="image/*"
+                              accept={ACCEPT_IMAGE_STRING}
                               className="hidden"
-                              onChange={(e) => handleImageUpload(product.id, e.target.files[0])}
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  handleImageUpload(product.id, e.target.files[0]);
+                                  e.target.value = "";
+                                }
+                              }}
                             />
                           </label>
                         </div>

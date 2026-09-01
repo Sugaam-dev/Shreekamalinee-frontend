@@ -10,26 +10,25 @@ export default function Footer() {
   const freeShippingThreshold = settings?.freeShippingThreshold != null ? settings.freeShippingThreshold : 1499;
   const contactPhone = settings?.whatsappNumber || settings?.contactPhone || "+91 9820785210";
   const contactEmail = settings?.supportEmail || settings?.contactEmail || "support@shreekamalinee.com";
-  const contactAddress = settings?.contactAddress || "Shreekamalinee Studio, Atelier Heritage Lane, Varanasi, Uttar Pradesh, India";
+  const contactAddress = settings?.contactAddress || "Shreekamalinee, Maharashtra, India";
 
   const collectionLinks = [
     { label: "Handwoven Sarees", path: "/shop?category=Sarees" },
-    { label: "Unstitched Suit Material", path: "/shop?category=Dress%20Material" },
-    { label: "Readymade Silhouettes", path: "/shop?category=Readymade" },
-    { label: "Ethnic Accessories", path: "/shop?category=Accessories" },
+    { label: "Dress Materials", path: "/shop?category=Dress%20Material" },
+    { label: "Readymade Ensembles", path: "/shop?category=Readymade" },
+    { label: "Heritage Accessories", path: "/shop?category=Accessories" },
   ];
 
   const customerLinks = [
     { label: "My Account", path: "/account/profile" },
-    { label: "Order History & Tracking", path: "/account/orders" },
-    { label: "Shipping & Delivery", path: "/shipping-returns" },
-    { label: "Returns & Exchanges", path: "/shipping-returns" },
-    { label: "Frequently Asked Questions", path: "/faq" },
+    { label: "Orders & Tracking", path: "/account/orders" },
+    { label: "Shipping & Returns", path: "/shipping-returns" },
+    { label: "FAQs & Help", path: "/faq" },
   ];
 
   const brandLinks = [
-    { label: "Our Artisanal Story", path: "/about" },
-    { label: "Contact & Studio", path: "/contact" },
+    { label: "Artisanal Story", path: "/about" },
+    { label: "Contact Us", path: "/contact" },
     { label: "Privacy Policy", path: "/privacy" },
     { label: "Terms of Service", path: "/terms" },
   ];
@@ -85,7 +84,7 @@ export default function Footer() {
       <div className="max-w-[1280px] 2xl:max-w-[1600px] 3xl:max-w-[2000px] 4k:max-w-[2400px] mx-auto px-4 sm:px-6 md:px-10 2xl:px-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10 pb-12 border-b border-line">
         <div className="lg:col-span-2 space-y-4">
           <Link to="/" className="font-serif text-2xl tracking-[0.2em] font-bold text-charcoal uppercase block">
-            Shree Kamalinee
+            Shreekamalinee
           </Link>
           <p className="text-xs text-charcoal/70 leading-relaxed max-w-sm">
             Curating India&apos;s finest handwoven silks and artisanal textiles. Celebrating traditional craftsmanship with timeless silhouettes.
@@ -121,7 +120,7 @@ export default function Footer() {
           <h4 className="font-serif font-bold text-xs uppercase tracking-widest text-charcoal mb-4">Customer Care</h4>
           <ul className="space-y-2.5 text-xs text-charcoal/70">
             {customerLinks.map((link) => (
-              <li key={link.label}>
+              <li key={link.path}>
                 <Link to={link.path} className="hover:text-rust transition-colors">{link.label}</Link>
               </li>
             ))}
@@ -142,11 +141,11 @@ export default function Footer() {
 
       {/* Bottom Bar */}
       <div className="max-w-[1280px] 2xl:max-w-[1600px] 3xl:max-w-[2000px] 4k:max-w-[2400px] mx-auto px-4 sm:px-6 md:px-10 2xl:px-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-charcoal/60">
-        <p>© {new Date().getFullYear()} Shree Kamalinee. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Shreekamalinee. All rights reserved.</p>
         <div className="flex items-center gap-4 text-base text-charcoal/70">
-          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-rust"><FaInstagram /></a>
-          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-rust"><FaFacebookF /></a>
-          <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="hover:text-rust"><CiYoutube /></a>
+          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-rust" aria-label="Instagram"><FaInstagram /></a>
+          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-rust" aria-label="Facebook"><FaFacebookF /></a>
+          <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="hover:text-rust" aria-label="YouTube"><CiYoutube /></a>
         </div>
       </div>
     </footer>

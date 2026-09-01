@@ -201,7 +201,7 @@ export default function ContactPage() {
             <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-sm text-xs text-amber-900 leading-relaxed flex items-start gap-2.5">
               <AlertCircle size={17} className="text-amber-800 shrink-0 mt-0.5" />
               <span>
-                <strong>Bespoke Customization Notice:</strong> For bridal weaves, blouse stitching adjustments, and zari customization, please include your timeline in the message.
+                <strong>Artisanal Weave Inquiries:</strong> For bulk wedding weaves, fabric availability, and festive collection inquiries, please include your timeline in the message.
               </span>
             </div>
           </div>

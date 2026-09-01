@@ -24,6 +24,16 @@ export function useCouponsQuery() {
   });
 }
 
+// 2b. Fetch coupon redemption usages (Admin)
+export function useCouponUsagesQuery(couponId) {
+  return useQuery({
+    queryKey: ["coupons", couponId, "usages"],
+    queryFn: () => couponApi.getCouponUsages(couponId),
+    enabled: !!couponId,
+    staleTime: 1000 * 10,
+  });
+}
+
 
 export function useCreateCouponMutation() {
   const queryClient = useQueryClient();

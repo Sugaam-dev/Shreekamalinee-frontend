@@ -11,7 +11,7 @@ export default function ShippingReturnsPage() {
   const estimatedDays = settings?.estimatedDeliveryDays || "3-5 Business Days";
 
   useSEO({
-    title: "Shipping & Returns Policy — Shree Kamalinee",
+    title: "Shipping & Returns Policy — Shreekamalinee",
     description: "Detailed timelines for domestic shipping, international delivery, and 7-day hassle-free returns.",
   });
 
@@ -85,7 +85,7 @@ export default function ShippingReturnsPage() {
               Returns & Exchange Policy
             </h3>
             <p>
-              Every Shree Kamalinee creation undergoes rigorous artisan inspection. If you receive an item with manufacturing imperfections or wish to exchange sizing, you can request an exchange within <strong>7 days</strong> of delivery.
+              Every Shreekamalinee creation undergoes rigorous artisan inspection. If you receive an item with manufacturing imperfections or wish to exchange sizing, you can request an exchange within <strong>7 days</strong> of delivery.
             </p>
           </section>
         </div>

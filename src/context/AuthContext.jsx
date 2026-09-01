@@ -4,15 +4,50 @@ import authApi from "../api/authApi.js";
 
 const AuthContext = createContext(null);
 
+const USER_CACHE_KEY = "shreekamalinee_user_cache";
+
+const getCachedUser = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedUser = (userData) => {
+  if (typeof window === "undefined") return;
+  try {
+    if (userData) {
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
+    } else {
+      localStorage.removeItem(USER_CACHE_KEY);
+    }
+  } catch {}
+};
+
 export function AuthProvider({ children }) {
-  // Query live session from Spring Boot API (/api/v1/auth/me)
-  const { data: serverUser, isLoading: isHydrating, refetch: refetchUser } = useCurrentUserQuery();
+  // 1. Synchronously initialize from localStorage cache for instant 0ms rendering
+  const [localUser, setLocalUser] = useState(() => getCachedUser());
+
+  // 2. Query live session from Spring Boot API (/api/v1/auth/me) in background
+  const { data: serverUser, isLoading: isServerLoading, isFetched: isServerFetched, refetch: refetchUser } = useCurrentUserQuery();
   const logoutMutation = useLogoutMutation();
 
-  // Local fallback user state for development / optimistic login
-  const [localUser, setLocalUser] = useState(null);
+  // Keep local user and storage in sync whenever server confirms fresh user data
+  useEffect(() => {
+    if (serverUser) {
+      setLocalUser(serverUser);
+      setCachedUser(serverUser);
+    } else if (isServerFetched && serverUser === null) {
+      // Server explicitly verified session is unauthenticated
+      setLocalUser(null);
+      setCachedUser(null);
+    }
+  }, [serverUser, isServerFetched]);
 
-  // Active user entity (Server session takes priority)
+  // Active user entity (Server session takes priority, cached localUser ensures instant display)
   const user = serverUser || localUser;
 
   const rawRole = user?.role || "ROLE_ANONYMOUS";
@@ -21,10 +56,13 @@ export function AuthProvider({ children }) {
   const isAdmin = normalizedRole === "ROLE_ADMIN" || normalizedRole === "ROLE_SUPERADMIN";
   const isCustomer = normalizedRole === "ROLE_USER" || normalizedRole === "ROLE_CUSTOMER";
   const isAuthenticated = Boolean(user);
+  // Only true if no cached user exists AND server is actively checking
+  const isHydrating = !user && isServerLoading;
 
-  // Direct login setter used after successful password / OTP mutation
+  // Direct login setter used after successful password / OTP / SSO mutation
   const setUserSession = useCallback((userData) => {
     setLocalUser(userData);
+    setCachedUser(userData);
     refetchUser();
   }, [refetchUser]);
 
@@ -32,6 +70,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const handleSessionExpired = () => {
       setLocalUser(null);
+      setCachedUser(null);
       localStorage.removeItem("shreekamalinee_guest_cart");
       localStorage.removeItem("shreekamalinee_guest_wishlist");
       if (typeof window !== "undefined") {
@@ -57,6 +96,7 @@ export function AuthProvider({ children }) {
       // Ignore network failure on logout
     } finally {
       setLocalUser(null);
+      setCachedUser(null);
       localStorage.removeItem("shreekamalinee_guest_cart");
       localStorage.removeItem("shreekamalinee_guest_wishlist");
     }

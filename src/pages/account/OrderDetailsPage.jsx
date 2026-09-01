@@ -7,14 +7,11 @@ import {
   MapPin,
   CreditCard,
   CheckCircle,
-  HelpCircle,
   Package,
   XCircle,
-  AlertCircle,
   Copy,
   Check,
   ExternalLink,
-  FileText,
 } from "lucide-react";
 import { useUserOrderDetailQuery } from "../../queries/useOrderQueries.js";
 import { useBankDetailsQuery } from "../../queries/useSettingsQueries.js";
@@ -89,10 +86,13 @@ function normalizeOrderDetail(o, id) {
     orderNumber: o.orderNumber || (o.id ? String(o.id).substring(0, 8).toUpperCase() : "SKM-ORD"),
     status: effectiveStatus,
     orderDate: o.createdAt || o.orderDate || new Date().toISOString(),
-    totalAmount: Number(o.totalAmount) || 0,
-    subtotal: Number(o.totalAmount) || 0,
+    totalAmount: o.finalAmount != null ? Number(o.finalAmount) : Number(o.totalAmount || 0) - Number(o.discountAmount || 0) + Number(o.shippingFee || 0),
+    finalAmount: o.finalAmount != null ? Number(o.finalAmount) : Number(o.totalAmount || 0) - Number(o.discountAmount || 0) + Number(o.shippingFee || 0),
+    subtotal: Number(o.totalAmount ?? o.subtotal) || 0,
     shippingFee: Number(o.shippingFee) || 0,
     discountAmount: Number(o.discountAmount) || 0,
+    couponCode: o.couponCode || null,
+    codHandlingFee: Number(o.codHandlingFee) || 0,
     paymentMethod: o.paymentMethod || "MANUAL",
     paymentStatus: o.paymentStatus || "PENDING",
     trackingNumber: o.trackingNumber || o.awbNumber || null,
@@ -133,7 +133,7 @@ function normalizeOrderDetail(o, id) {
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
-  const { data: dbOrder, isLoading } = useUserOrderDetailQuery(id);
+  const { data: dbOrder } = useUserOrderDetailQuery(id);
   const { data: storeSettings } = useBankDetailsQuery();
   const [copiedTracking, setCopiedTracking] = useState(false);
 
@@ -409,23 +409,31 @@ export default function OrderDetailsPage() {
               <span className="font-semibold text-emerald-700">{order.paymentStatus}</span>
             </div>
             <div className="flex justify-between text-charcoal/70 pt-2 border-t border-line">
-              <span>Subtotal</span>
+              <span>Items Subtotal</span>
               <span className="font-semibold text-charcoal">{formatCurrency(order.subtotal)}</span>
             </div>
-            {order.discount > 0 && (
+            {order.discountAmount > 0 && (
               <div className="flex justify-between text-emerald-700 font-semibold">
-                <span>Discount</span>
-                <span>- {formatCurrency(order.discount)}</span>
+                <span>Coupon Savings ({order.couponCode || "VOUCHER"})</span>
+                <span>- {formatCurrency(order.discountAmount)}</span>
               </div>
             )}
             <div className="flex justify-between text-charcoal/70">
-              <span>Shipping Fee</span>
-              <span>{order.shippingFee === 0 ? "FREE" : formatCurrency(order.shippingFee)}</span>
+              <span>Delivery & Handling</span>
+              <span className="font-semibold text-charcoal">
+                {order.shippingFee === 0 ? "FREE" : formatCurrency(order.shippingFee)}
+              </span>
             </div>
+            {order.codHandlingFee > 0 && (
+              <div className="flex justify-between text-charcoal/70">
+                <span>COD Verification Fee</span>
+                <span className="font-semibold text-charcoal">{formatCurrency(order.codHandlingFee)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-baseline pt-2 border-t border-line text-charcoal font-bold">
-              <span className="font-serif text-sm">Total Paid</span>
+              <span className="font-serif text-sm">Net Total Amount</span>
               <span className="font-serif text-base text-rust">
-                {formatCurrency(order.totalAmount)}
+                {formatCurrency(order.finalAmount || order.totalAmount)}
               </span>
             </div>
           </div>

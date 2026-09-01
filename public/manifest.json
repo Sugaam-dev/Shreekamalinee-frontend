@@ -1,0 +1,26 @@
+{
+  "name": "Shreekamalinee | Royal Heritage Handloom",
+  "short_name": "Shreekamalinee",
+  "description": "Authentic Indian heritage handloom sarees, royal bridal Paithani, and artisanal fashion.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF7F2",
+  "theme_color": "#800020",
+  "icons": [
+    {
+      "src": "/shreekamalineeLogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/shreekamalineeLogo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "lifestyle", "fashion"],
+  "lang": "en-IN"
+}

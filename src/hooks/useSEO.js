@@ -49,8 +49,9 @@ export default function useSEO({ title, description, image, canonical, schema } 
     setMetaTag("name", "twitter:description", activeDesc);
     setMetaTag("name", "twitter:image", image || "/shreekamalineeLogo.png");
 
-    // 5. Update Canonical URL
-    const activeCanonical = canonical || window.location.href;
+    // 5. Update Canonical URL — strip query params and hash to avoid duplicate content indexing
+    const cleanOriginPath = window.location.origin + window.location.pathname;
+    const activeCanonical = canonical || cleanOriginPath;
     let canonicalElement = document.querySelector("link[rel='canonical']");
     if (!canonicalElement) {
       canonicalElement = document.createElement("link");

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Building, QrCode, Upload, Save, Copy, CheckCircle2 } from "lucide-react";
+import { Building, QrCode, Save } from "lucide-react";
 import { useCart } from "../../context/CartContext.jsx";
 import AdminLayout from "../../components/admin/AdminLayout.jsx";
 import Button from "../../components/common/Button.jsx";
 import Input from "../../components/common/Input.jsx";
+import { validateImageFile, ACCEPT_IMAGE_STRING } from "../../utils/fileValidation.js";
 
 export default function AdminBankSettingsPage() {
   const { showToast } = useCart();
@@ -31,12 +32,19 @@ export default function AdminBankSettingsPage() {
   };
 
   const handleQrUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const tempUrl = URL.createObjectURL(file);
-      setQrCodePreview(tempUrl);
-      showToast("New UPI QR Code image uploaded for customer checkout", "success");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
+      e.target.value = "";
+      return;
     }
+
+    const tempUrl = URL.createObjectURL(file);
+    setQrCodePreview(tempUrl);
+    showToast("New UPI QR Code image uploaded for customer checkout", "success");
   };
 
   return (
@@ -126,12 +134,12 @@ export default function AdminBankSettingsPage() {
             </label>
             <input
               type="file"
-              accept="image/*"
+              accept={ACCEPT_IMAGE_STRING}
               onChange={handleQrUpload}
               className="text-xs text-charcoal/60 file:mr-3 file:py-1.5 file:px-3 file:rounded-xs file:border file:border-line file:text-xs file:font-semibold file:bg-cream-2 file:text-charcoal hover:file:bg-rust hover:file:text-white file:cursor-pointer cursor-pointer"
             />
-            <p className="text-[10.5px] text-charcoal/45">
-              Recommended format: PNG or JPEG (minimum 400x400px)
+            <p className="text-[10.5px] text-charcoal/50">
+              Allowed: <strong>PNG, JPG, WebP, GIF</strong> • Max size: <strong>10 MB</strong>
             </p>
           </div>
         </div>

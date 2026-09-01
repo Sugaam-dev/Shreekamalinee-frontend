@@ -177,7 +177,7 @@ export default function ShopPage() {
 
   const matchBrand = (p, brands) => {
     if (!brands || brands.length === 0) return true;
-    return brands.includes(p.brand || "Shree Kamalinee");
+    return brands.includes(p.brand || "Shreekamalinee");
   };
 
   const matchSeason = (p, season) => {
@@ -274,7 +274,7 @@ export default function ShopPage() {
         matchStock(p, stockFilter) &&
         matchSeason(p, seasonFilter)
       ) {
-        const b = p.brand || "Shree Kamalinee";
+        const b = p.brand || "Shreekamalinee";
         brandCounts[b] = (brandCounts[b] || 0) + 1;
       }
     });
@@ -334,7 +334,7 @@ export default function ShopPage() {
       selectedCategory !== "All"
         ? `${selectedCategory} Collection`
         : "Public Store Catalog & Handlooms",
-    description: `Explore authentic handloom sarees, artisanal weaves, and ethnic ensembles certified with genuine Silk Mark at Shree Kamalinee.`,
+    description: `Explore authentic handloom sarees, artisanal weaves, and ethnic ensembles certified with genuine Silk Mark at Shreekamalinee.`,
   });
 
   // Filter & Search Evaluation matching Spring Boot Catalog API & Frontend
@@ -411,7 +411,7 @@ export default function ShopPage() {
     // 5. Brand Filter (Multiple select)
     if (selectedBrands.length > 0) {
       list = list.filter((p) =>
-        selectedBrands.includes(p.brand || "Shree Kamalinee")
+        selectedBrands.includes(p.brand || "Shreekamalinee")
       );
     }
 

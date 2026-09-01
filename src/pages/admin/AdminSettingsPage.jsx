@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 import {
   Building2,
   QrCode,
@@ -30,6 +32,7 @@ import {
 import { useCart } from "../../context/CartContext.jsx";
 import AdminLayout from "../../components/admin/AdminLayout.jsx";
 import Button from "../../components/common/Button.jsx";
+import { validateImageFile, ACCEPT_IMAGE_STRING } from "../../utils/fileValidation.js";
 
 export default function AdminSettingsPage() {
   const { showToast } = useCart();
@@ -81,6 +84,7 @@ export default function AdminSettingsPage() {
   // 3. Contact Form
   const {
     register: regContact,
+    control: controlContact,
     handleSubmit: handleContactSubmit,
     reset: resetContact,
     formState: { errors: errorsContact, isSubmitting: isSubmittingContact },
@@ -208,6 +212,13 @@ export default function AdminSettingsPage() {
 
   const handleQrUpload = async (file) => {
     if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
+      return;
+    }
+
     const previewUrl = URL.createObjectURL(file);
     setLocalQrPreview(previewUrl);
 
@@ -474,19 +485,26 @@ export default function AdminSettingsPage() {
               <label className="block text-xs uppercase font-bold tracking-wider text-gray-800 mb-1">
                 WhatsApp Concierge Phone (With Country Code)
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  {...regContact("whatsappNumber")}
-                  placeholder="+919876543210"
-                  className={`w-full pl-8 pr-3 py-2 text-xs border rounded-xs outline-none bg-white font-mono ${
-                    errorsContact.whatsappNumber ? "border-rose-500" : "border-gray-300 focus:border-[#800020]"
-                  }`}
-                />
-                <Phone size={13} className="absolute left-2.5 top-2.5 text-gray-400" />
-              </div>
+              <Controller
+                name="whatsappNumber"
+                control={controlContact}
+                render={({ field }) => (
+                  <PhoneInput
+                    defaultCountry="in"
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    className="w-full text-xs"
+                    inputClassName={`!w-full !py-2 !px-3 !text-xs !bg-white !rounded-r-xs !font-mono !text-gray-900 focus:!border-[#800020] border ${
+                      errorsContact.whatsappNumber ? "!border-rose-500" : "!border-gray-300"
+                    }`}
+                    countrySelectorStyleProps={{
+                      buttonClassName: "!bg-gray-50 !border-gray-300 !rounded-l-xs !px-2.5",
+                    }}
+                  />
+                )}
+              />
               <span className="text-[10.5px] text-gray-400 mt-1 block">
-                Direct WhatsApp contact button for VIP buyers.
+                Direct WhatsApp contact button for VIP buyers (includes country code flag).
               </span>
               {errorsContact.whatsappNumber && (
                 <span className="text-[11px] text-rose-600 mt-1 block">
@@ -576,7 +594,7 @@ export default function AdminSettingsPage() {
               <input
                 type="text"
                 {...regBank("accountHolderName")}
-                placeholder="e.g. Shree Kamalinee Pvt Ltd"
+                placeholder="e.g. Shreekamalinee Pvt Ltd"
                 className={`w-full px-3 py-2 text-xs border rounded-xs outline-none bg-white font-medium ${
                   errorsBank.accountHolderName ? "border-rose-500" : "border-gray-300 focus:border-[#800020]"
                 }`}
@@ -747,12 +765,17 @@ export default function AdminSettingsPage() {
 
         {/* 5. UPI QR Code Scanner Upload Card */}
         <div className="bg-white p-6 rounded-xs border border-gray-200 shadow-xs space-y-4 text-xs">
-          <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-100 gap-2">
             <div className="flex items-center gap-2">
               <QrCode size={16} className="text-[#800020]" />
-              <h2 className="font-serif font-bold text-base text-gray-900">
-                5. Merchant UPI QR Code Image
-              </h2>
+              <div>
+                <h2 className="font-serif font-bold text-base text-gray-900 leading-tight">
+                  5. Merchant UPI QR Code Image
+                </h2>
+                <span className="text-[10.5px] text-gray-500 block">
+                  Formats: <strong>JPG, PNG, WebP, GIF</strong> • Max: <strong>10 MB</strong> (Min: 100 Bytes)
+                </span>
+              </div>
             </div>
 
             <label
@@ -775,7 +798,7 @@ export default function AdminSettingsPage() {
               )}
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp"
+                accept={ACCEPT_IMAGE_STRING}
                 className="hidden"
                 disabled={uploadQrMutation.isPending}
                 onChange={(e) => {

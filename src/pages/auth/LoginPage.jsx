@@ -26,11 +26,12 @@ export default function LoginPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [isGoogleProcessing, setIsGoogleProcessing] = useState(false);
 
   const loginMutation = useLoginMutation();
   const googleMutation = useGoogleAuthMutation();
 
-  const from = location.state?.from?.pathname || "/account/profile";
+  const from = location.state?.from?.pathname || "/";
 
   const {
     register,
@@ -53,7 +54,7 @@ export default function LoginPage() {
         password: data.password,
       });
       setUserSession(response);
-      showToast("Welcome back to Shree Kamalinee!", "success");
+      showToast("Welcome back to Shreekamalinee!", "success");
 
       const userRole = response.role?.startsWith("ROLE_") ? response.role : `ROLE_${response.role}`;
       if (userRole === "ROLE_ADMIN" || userRole === "ROLE_SUPERADMIN") {
@@ -79,10 +80,11 @@ export default function LoginPage() {
         gisInitialized.current = true;
         window.google.accounts.id.initialize({
           client_id: googleClientId,
+          use_fedcm_for_prompt: true,
           callback: async (response) => {
             if (response?.credential) {
               try {
-                showToast("Verifying with Google...", "info");
+                setIsGoogleProcessing(true);
                 const authResponse = await googleMutation.mutateAsync({
                   googleIdToken: response.credential,
                 });
@@ -99,6 +101,7 @@ export default function LoginPage() {
                   navigate(from, { replace: true });
                 }
               } catch (err) {
+                setIsGoogleProcessing(false);
                 const msg =
                   err.response?.data?.message ||
                   err.response?.data?.error ||
@@ -111,12 +114,15 @@ export default function LoginPage() {
 
         const btnContainer = document.getElementById("google-signin-container");
         if (btnContainer) {
+          btnContainer.innerHTML = "";
           window.google.accounts.id.renderButton(btnContainer, {
             theme: "outline",
             size: "large",
-            width: btnContainer.offsetWidth || 340,
+            type: "standard",
+            shape: "pill",
             text: "signin_with",
-            shape: "rectangular",
+            logo_alignment: "left",
+            width: Math.min(btnContainer.parentElement?.offsetWidth || 340, 360),
           });
         }
       }
@@ -134,21 +140,6 @@ export default function LoginPage() {
       return () => clearInterval(timer);
     }
   }, [googleMutation, navigate, setUserSession, showToast, from]);
-
-  const handleGoogleLogin = () => {
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          const btn = document.querySelector("#google-signin-container div[role=button]");
-          if (btn) {
-            btn.click();
-          }
-        }
-      });
-    } else {
-      showToast("Google services are loading. Please try again in a moment.", "info");
-    }
-  };
 
   return (
     <AuthLayout
@@ -234,47 +225,33 @@ export default function LoginPage() {
         {/* Divider */}
         <div className="relative flex items-center justify-center pt-2">
           <div className="border-t border-line w-full" />
-          <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-charcoal/40 font-bold shrink-0">
+          <span className="bg-[#FAF7F2] px-3 text-[11px] uppercase tracking-wider text-charcoal/40 font-bold shrink-0">
             or continue with
           </span>
           <div className="border-t border-line w-full" />
         </div>
 
-        {/* Single Google SSO Button */}
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          disabled={googleMutation.isPending}
-          className="w-full py-2.5 px-4 border border-line hover:border-charcoal/40 rounded-xs text-xs font-semibold text-charcoal bg-white flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {googleMutation.isPending ? (
-            <div className="w-4 h-4 border-2 border-rust border-t-transparent rounded-full animate-spin shrink-0" />
-          ) : (
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-          )}
-          <span>{googleMutation.isPending ? "Authenticating..." : "Sign In with Google"}</span>
-        </button>
+        {/* Google Identity Services Direct Button Container */}
+        <div className="w-full flex justify-center items-center min-h-[44px]">
+          <div id="google-signin-container" className="flex justify-center w-full max-w-[360px]" />
+        </div>
+
+        {/* Visual Royal Fullscreen Authenticating Overlay for Instant Feedback */}
+        {isGoogleProcessing && (
+          <div className="fixed inset-0 z-[9999] bg-charcoal/85 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 animate-fadeIn">
+            <div className="w-16 h-16 rounded-full border-3 border-[#D6A23F] border-t-transparent animate-spin mb-4 shadow-[0_0_25px_rgba(214,162,63,0.5)]" />
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#FAF7F2] tracking-wide mb-1">
+              Authenticating Royal Session
+            </h3>
+            <p className="text-xs sm:text-sm text-cream/70 max-w-sm text-center">
+              Welcome back, Patron. Connecting your Shreekamalinee handloom account...
+            </p>
+          </div>
+        )}
 
         {/* Footer Registration Link */}
         <div className="text-center pt-2 text-xs text-charcoal/70">
-          <span>New patron to Shree Kamalinee? </span>
+          <span>New patron to Shreekamalinee? </span>
           <Link
             to="/register"
             className="text-rust font-bold hover:underline"

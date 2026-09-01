@@ -8,15 +8,12 @@ import {
   Plus,
   Trash2,
   Save,
-  CheckCircle2,
   Image as ImageIcon,
   Sparkles,
   Layers,
   Tag,
   Package,
   ListPlus,
-  X,
-  AlertCircle,
 } from "lucide-react";
 import { productSchema } from "../../schemas/productSchemas.js";
 import {
@@ -28,30 +25,10 @@ import {
 } from "../../queries/useProductQueries.js";
 import { useCategoriesQuery } from "../../queries/useCategoryQueries.js";
 import { useCart } from "../../context/CartContext.jsx";
-import { formatCurrency } from "../../utils/formatters.js";
 import AdminLayout from "../../components/admin/AdminLayout.jsx";
 import Button from "../../components/common/Button.jsx";
-
-/**
- * Generate a clean, unique Variant SKU in real-time.
- * Pattern: PRODUCT_SKU + "-" + SIZE + "-" + COLOR (+ "-" + counter for duplicates)
- */
-export function generateVariantSku(productSku, size, color, existingVariantSkus = [], currentIdx = -1) {
-  const cleanProdSku = (productSku || "SKU").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
-  const cleanSize = (size || "FS").trim().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-  const cleanColor = (color || "STD").trim().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-
-  const baseSku = `${cleanProdSku || "SKU"}-${cleanSize || "FS"}-${cleanColor || "STD"}`;
-  let uniqueSku = baseSku;
-  let counter = 1;
-
-  const otherSkus = existingVariantSkus.filter((_, idx) => idx !== currentIdx);
-
-  while (otherSkus.includes(uniqueSku)) {
-    uniqueSku = `${baseSku}-${counter++}`;
-  }
-  return uniqueSku;
-}
+import { generateVariantSku } from "../../utils/skuGenerator.js";
+import { validateImageBatch, ACCEPT_IMAGE_STRING } from "../../utils/fileValidation.js";
 
 export default function AdminProductFormPage() {
   const { id } = useParams();
@@ -348,10 +325,17 @@ export default function AdminProductFormPage() {
 
   const [selectedImageFiles, setSelectedImageFiles] = useState([]);
 
-  // Image Select Action (supports instant local preview & direct edit upload)
+  // Image Select Action (supports instant local preview & direct edit upload with size & format validation)
   const handleSelectImageFiles = (files) => {
     if (!files || files.length === 0) return;
-    const newItems = Array.from(files).map((file) => ({
+
+    const validation = validateImageBatch(files);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
+      return;
+    }
+
+    const newItems = validation.validFiles.map((file) => ({
       file,
       previewUrl: URL.createObjectURL(file),
       id: Math.random().toString(36).slice(2, 9),
@@ -400,7 +384,7 @@ export default function AdminProductFormPage() {
       const payload = {
         ...data,
         name: data.name.trim(),
-        brand: data.brand.trim() || "Shree Kamalinee",
+        brand: data.brand.trim() || "Shreekamalinee",
         description: data.description?.trim() || "",
         originalPrice: Number(data.originalPrice),
         offerPrice: data.offerPrice ? Number(data.offerPrice) : undefined,
@@ -510,7 +494,7 @@ export default function AdminProductFormPage() {
               <input
                 type="text"
                 {...register("brand")}
-                placeholder="Enter brand name (e.g. Shree Kamalinee)"
+                placeholder="Enter brand name (e.g. Shreekamalinee)"
                 className={`w-full px-3 py-2 text-xs border rounded-xs outline-none bg-white font-medium ${
                   errors.brand ? "border-rose-500" : "border-gray-300 focus:border-[#800020]"
                 }`}
@@ -761,19 +745,24 @@ export default function AdminProductFormPage() {
 
         {/* 3. Multi-Image Gallery CDN */}
         <section className="bg-white p-6 rounded-xs border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-100 gap-2">
             <div className="flex items-center gap-2">
               <ImageIcon size={16} className="text-[#800020]" />
-              <h2 className="font-serif font-bold text-base text-gray-900">
-                Product Image Gallery (CDN)
-              </h2>
+              <div>
+                <h2 className="font-serif font-bold text-base text-gray-900 leading-tight">
+                  Product Image Gallery (CDN)
+                </h2>
+                <span className="text-[10.5px] text-gray-500 block">
+                  Formats: <strong>JPG, PNG, WebP, GIF</strong> • Max: <strong>10 MB/image</strong> (Min: 100B) • Max batch: <strong>20 MB</strong>
+                </span>
+              </div>
             </div>
-            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#800020] text-white text-xs font-semibold rounded-xs cursor-pointer hover:bg-[#600018] transition-colors shadow-xs">
+            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#800020] text-white text-xs font-semibold rounded-xs cursor-pointer hover:bg-[#600018] transition-colors shadow-xs shrink-0">
               <Upload size={13} />
               <span>Select & Upload Photos</span>
               <input
                 type="file"
-                accept="image/*"
+                accept={ACCEPT_IMAGE_STRING}
                 multiple
                 className="hidden"
                 disabled={uploadImageMutation.isPending}
@@ -788,12 +777,19 @@ export default function AdminProductFormPage() {
               <div className="text-xs font-bold text-gray-800">
                 Click to Select Product Images (Multiple allowed)
               </div>
-              <span className="text-[11px] text-gray-400">
+              <span className="text-[11px] text-gray-500">
                 Selected photos will preview below instantly and be uploaded when you publish this product.
               </span>
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded text-[10.5px] text-amber-900 font-medium">
+                <span>Allowed: JPG, PNG, WebP, GIF</span>
+                <span>•</span>
+                <span>Max 10 MB per photo</span>
+                <span>•</span>
+                <span>Max 20 MB total batch</span>
+              </div>
               <input
                 type="file"
-                accept="image/*"
+                accept={ACCEPT_IMAGE_STRING}
                 multiple
                 className="hidden"
                 disabled={uploadImageMutation.isPending}

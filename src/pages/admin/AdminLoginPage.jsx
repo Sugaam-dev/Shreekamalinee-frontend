@@ -69,7 +69,7 @@ export default function AdminLoginPage() {
             <Sparkles size={26} />
           </div>
           <h1 className="font-serif text-2xl md:text-3xl font-bold text-[#800020] tracking-wide">
-            SHREE KAMALINEE
+            SHREEKAMALINEE
           </h1>
           <span className="text-[11px] uppercase tracking-[0.25em] text-[#B8860B] font-bold block mt-1">
             Executive Admin Portal

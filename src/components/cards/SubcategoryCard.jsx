@@ -17,7 +17,7 @@ export default function SubcategoryCard({ catName, subcatName, image, isSoldOut 
           src={image || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80"}
           alt={subcatName}
           loading="lazy"
-          className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+          className={`w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105 ${
             isSoldOut ? "opacity-80 grayscale-[25%]" : ""
           }`}
 

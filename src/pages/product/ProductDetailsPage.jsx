@@ -43,6 +43,11 @@ import { useBankDetailsQuery } from "../../queries/useSettingsQueries.js";
 import useSEO from "../../hooks/useSEO.js";
 import Button from "../../components/common/Button.jsx";
 import RatingStars from "../../components/common/RatingStars.jsx";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, Pagination, Navigation } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+import "swiper/css/navigation";
 import Breadcrumb from "../../components/common/Breadcrumb.jsx";
 import ProductCard from "../../components/cards/ProductCard.jsx";
 import Modal from "../../components/common/Modal.jsx";
@@ -177,7 +182,7 @@ export default function ProductDetailsPage() {
 
   // 7. Dynamic SEO
   useSEO({
-    title: product ? `${product.name} | Shree Kamalinee Handlooms` : "Handloom Product Details",
+    title: product ? `${product.name} | Shreekamalinee Handlooms` : "Handloom Product Details",
     description: product?.description || "Authentic luxury handloom saree and ethnic attire.",
   });
 
@@ -289,8 +294,8 @@ export default function ProductDetailsPage() {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: product?.name || "Shree Kamalinee",
-        text: `Look at this royal ${product?.name} from Shree Kamalinee!`,
+        title: product?.name || "Shreekamalinee",
+        text: `Look at this royal ${product?.name} from Shreekamalinee!`,
         url: window.location.href,
       });
     } else {
@@ -481,7 +486,7 @@ export default function ProductDetailsPage() {
                 {product.name}
               </h1>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 text-xs text-gray-500">
-                <span className="font-semibold text-gray-700">By {product.brand || "Shree Kamalinee"}</span>
+                <span className="font-semibold text-gray-700">By {product.brand || "Shreekamalinee"}</span>
                 <span>•</span>
                 <span className="font-mono text-gray-400">SKU: {selectedVariant?.sku || product.sku}</span>
               </div>
@@ -838,7 +843,7 @@ export default function ProductDetailsPage() {
                 <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xs text-[11.5px] text-amber-900 flex items-center gap-2.5">
                   <ShieldCheck size={16} className="text-[#800020] shrink-0" />
                   <span>
-                    <strong>Authenticity Guarantee:</strong> Certified authentic artisan inspection seal from {product.brand || "Shree Kamalinee"}.
+                    <strong>Authenticity Guarantee:</strong> Certified authentic artisan inspection seal from {product.brand || "Shreekamalinee"}.
                   </span>
                 </div>
               </div>
@@ -962,65 +967,91 @@ export default function ProductDetailsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {reviewsList.map((rev) => {
-                const canDelete =
-                  user &&
-                  (user.id === rev.userId ||
-                    user.role === "ROLE_ADMIN" ||
-                    user.role === "ROLE_SUPERADMIN");
+            <div className="relative pb-8 reviews-swiper-container">
+              <Swiper
+                modules={[Autoplay, Pagination]}
+                spaceBetween={16}
+                slidesPerView={1.15}
+                autoplay={{
+                  delay: 4500,
+                  disableOnInteraction: false,
+                  pauseOnMouseEnter: true,
+                }}
+                pagination={{
+                  clickable: true,
+                  dynamicBullets: true,
+                }}
+                loop={reviewsList.length > 3}
+                breakpoints={{
+                  640: {
+                    slidesPerView: 2,
+                    spaceBetween: 16,
+                  },
+                  1024: {
+                    slidesPerView: 3,
+                    spaceBetween: 20,
+                  },
+                }}
+                className="!pb-10"
+              >
+                {reviewsList.map((rev) => {
+                  const canDelete =
+                    user &&
+                    (user.id === rev.userId ||
+                      user.role === "ROLE_ADMIN" ||
+                      user.role === "ROLE_SUPERADMIN");
 
-                const reviewerDisplayName =
-                  rev.userName || rev.reviewerName || "Verified Patron";
+                  const reviewerDisplayName =
+                    rev.userName || rev.reviewerName || "Verified Patron";
 
-                return (
-                  <div
-                    key={rev.id}
-                    className="p-4 sm:p-5 bg-white border border-gray-200 rounded-xs shadow-xs space-y-3 flex flex-col justify-between"
-                  >
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <RatingStars rating={rev.rating} size={14} />
-                        <span className="text-[11px] text-gray-400 font-mono">
-                          {formatDate(rev.createdAt)}
-                        </span>
+                  return (
+                    <SwiperSlide key={rev.id} className="!h-auto">
+                      <div className="p-4 sm:p-5 bg-white border border-gray-200 rounded-xs shadow-xs space-y-3 flex flex-col justify-between h-full hover:border-[#800020]/40 transition-colors">
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <RatingStars rating={rev.rating} size={14} />
+                            <span className="text-[11px] text-gray-400 font-mono">
+                              {formatDate(rev.createdAt)}
+                            </span>
+                          </div>
+                          {rev.title && (
+                            <strong className="font-serif font-bold text-sm text-gray-900 block line-clamp-1">
+                              "{rev.title}"
+                            </strong>
+                          )}
+                          <p className="text-xs text-gray-700 leading-relaxed line-clamp-4">
+                            {rev.comment}
+                          </p>
+                        </div>
+
+                        <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] mt-auto">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900">
+                              {reviewerDisplayName}
+                            </span>
+                            <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                              <CheckCircle size={12} />
+                              <span>Verified</span>
+                            </span>
+                          </div>
+
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReview(rev.id)}
+                              disabled={deleteReviewMutation.isPending}
+                              className="text-gray-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
+                              title="Delete this review"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {rev.title && (
-                        <strong className="font-serif font-bold text-sm text-gray-900 block">
-                          "{rev.title}"
-                        </strong>
-                      )}
-                      <p className="text-xs text-gray-700 leading-relaxed">
-                        {rev.comment}
-                      </p>
-                    </div>
-
-                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900">
-                          {reviewerDisplayName}
-                        </span>
-                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                          <CheckCircle size={12} />
-                          <span>Verified</span>
-                        </span>
-                      </div>
-
-                      {canDelete && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteReview(rev.id)}
-                          disabled={deleteReviewMutation.isPending}
-                          className="text-gray-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
-                          title="Delete this review"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                    </SwiperSlide>
+                  );
+                })}
+              </Swiper>
             </div>
           )}
         </div>

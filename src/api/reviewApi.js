@@ -4,7 +4,24 @@ export const reviewApi = {
   // 1. Fetch reviews summary for a product
   getProductReviews: async (productId) => {
     const response = await apiClient.get(`/api/v1/catalog/products/${productId}/reviews`);
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) {
+      const sum = data.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+      const avg = data.length > 0 ? Math.round((sum / data.length) * 10) / 10 : 5.0;
+      return {
+        reviews: data,
+        averageRating: avg,
+        totalReviews: data.length,
+      };
+    }
+    if (Array.isArray(data?.content)) {
+      return {
+        reviews: data.content,
+        averageRating: data.averageRating || 5.0,
+        totalReviews: data.totalElements || data.content.length,
+      };
+    }
+    return data || { reviews: [], averageRating: 0, totalReviews: 0 };
   },
 
   // 2. Add review as Admin (e.g. offline customer verification)

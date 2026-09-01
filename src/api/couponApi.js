@@ -4,7 +4,12 @@ export const couponApi = {
   // 1. Fetch all coupons (Admin)
   getAllCoupons: async () => {
     const response = await apiClient.get("/api/v1/admin/coupons");
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.content)) return data.content;
+    if (Array.isArray(data?.coupons)) return data.coupons;
+    if (Array.isArray(data?.data)) return data.data;
+    return [];
   },
 
   // 2. Create coupon (Admin)
@@ -19,10 +24,21 @@ export const couponApi = {
     return response.data;
   },
 
+  // 3b. Fetch coupon redemption usages (Admin)
+  getCouponUsages: async (id) => {
+    const response = await apiClient.get(`/api/v1/admin/coupons/${id}/usages`);
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
   // 4. Fetch public active coupons (Customer / Checkout)
   getActiveCoupons: async () => {
     const response = await apiClient.get("/api/v1/orders/coupons");
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.content)) return data.content;
+    if (Array.isArray(data?.coupons)) return data.coupons;
+    if (Array.isArray(data?.data)) return data.data;
+    return [];
   },
 
   // 5. Validate coupon code (Checkout)

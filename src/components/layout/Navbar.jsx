@@ -10,7 +10,7 @@ import { useBankDetailsQuery } from "../../queries/useSettingsQueries.js";
 
 export default function Navbar() {
   const { cart, wishlist, setDrawerOpen, setWishlistOpen } = useCart();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { data: dbCategories = [] } = useCategoriesQuery();
   const { data: storeSettings } = useBankDetailsQuery();
 
@@ -59,10 +59,10 @@ export default function Navbar() {
     if (mobileOpen) {
       document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = "";
     };
   }, [mobileOpen]);
 
@@ -277,7 +277,12 @@ export default function Navbar() {
             </button>
 
             {/* User Profile / Account Menu */}
-            {isAuthenticated ? (
+            {isLoading ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="h-7.5 w-18 bg-[#F4EEE3]/80 animate-pulse rounded-full border border-[#E6DFD3]/60" />
+                <div className="h-7.5 w-22 bg-[#800020]/15 animate-pulse rounded-full" />
+              </div>
+            ) : isAuthenticated ? (
               <div
                 className="relative hidden sm:block"
                 onMouseEnter={handleUserEnter}
@@ -285,18 +290,18 @@ export default function Navbar() {
               >
                 <button
                   onClick={() => navigate("/account/profile")}
-                  className="hover:text-rust py-1 px-2.5 hover:bg-[#F4EEE3]/80 rounded-full transition-all cursor-pointer text-charcoal/90 flex items-center gap-2 border border-[#E6DFD3]/80 active:scale-95 shadow-2xs"
+                  className="group hover:text-rust py-1 px-3 hover:bg-gradient-to-r hover:from-[#F4EEE3] hover:via-[#FAF7F2] hover:to-[#F4EEE3] rounded-full transition-all duration-300 cursor-pointer text-charcoal/90 flex items-center gap-2 border border-[#E6DFD3] hover:border-[#D6A23F]/60 active:scale-95 shadow-2xs hover:shadow-[0_4px_14px_rgba(214,162,63,0.18)]"
                   title="My Royal Account"
                 >
-                  <div className="w-6 h-6 rounded-full bg-rust text-white font-serif font-bold text-[11px] flex items-center justify-center shadow-xs">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#800020] to-[#5a0016] text-white font-serif font-bold text-[11px] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                     {(user?.firstName || user?.name || user?.email || "P").charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-[12px] font-semibold text-charcoal max-w-[100px] truncate">
+                  <span className="text-[12px] font-semibold text-charcoal max-w-[100px] truncate group-hover:text-rust transition-colors">
                     {user?.firstName || user?.name?.split(" ")[0] || "Account"}
                   </span>
                   <ChevronDown
                     size={13}
-                    className={`transition-transform duration-200 text-charcoal/50 ${
+                    className={`transition-transform duration-300 text-charcoal/50 group-hover:text-rust ${
                       userMenuOpen ? "rotate-180 text-rust" : ""
                     }`}
                   />
@@ -384,13 +389,13 @@ export default function Navbar() {
               <div className="hidden sm:flex items-center gap-2">
                 <Link
                   to="/login"
-                  className="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-charcoal/90 hover:text-rust bg-[#FAF7F2] hover:bg-[#F4EEE3] border border-[#E6DFD3] hover:border-rust/40 transition-all shadow-2xs active:scale-95"
+                  className="relative px-4 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wider text-charcoal/90 hover:text-rust bg-[#FAF7F2] hover:bg-[#F4EEE3] border border-[#E6DFD3] hover:border-rust/50 hover:shadow-[0_4px_12px_rgba(128,0,32,0.1)] active:scale-95 active:shadow-inner transition-all duration-300 transform hover:-translate-y-0.5"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-white bg-rust hover:bg-rust-deep transition-all shadow-2xs active:scale-95"
+                  className="relative px-4 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wider text-white bg-gradient-to-r from-[#800020] to-[#600018] hover:from-[#940026] hover:to-[#73001d] hover:shadow-[0_4px_15px_rgba(128,0,32,0.3)] border border-[#D6A23F]/40 active:scale-95 active:shadow-inner transition-all duration-300 transform hover:-translate-y-0.5"
                 >
                   Register
                 </Link>
@@ -505,7 +510,7 @@ export default function Navbar() {
                 <div className="border-t border-b border-[#E6DFD3]/70 py-1">
                   <button
                     onClick={() => setMobileCollectionsOpen(!mobileCollectionsOpen)}
-                    className="flex items-center justify-between w-full py-2 px-3 uppercase tracking-[0.12em] text-xs font-bold text-charcoal cursor-pointer"
+                    className="flex items-center justify-between w-full py-2.5 px-3.5 uppercase tracking-[0.12em] text-xs font-bold text-charcoal hover:text-rust transition-colors cursor-pointer"
                   >
                     <span>Collections</span>
                     <ChevronDown
@@ -517,50 +522,51 @@ export default function Navbar() {
                   </button>
 
                   {mobileCollectionsOpen && (
-                    <div className="pl-3 pr-1 py-2 space-y-2.5 border-l-2 border-rust/40 ml-3 bg-[#F4EEE3]/40 rounded-r-md">
+                    <div className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-rust/30 ml-3">
                       {navCategories.map((category) => {
                         const isCatOpen = mobileActiveCategory === category.name;
+                        const hasSubcats = Array.isArray(category.subcats) && category.subcats.length > 0;
                         return (
-                          <div
-                            key={category.name}
-                            className="border-b border-[#E6DFD3]/50 pb-2 last:border-b-0 last:pb-0"
-                          >
-                            <button
-                              onClick={() =>
-                                setMobileActiveCategory(
-                                  isCatOpen ? null : category.name
-                                )
-                              }
-                              className="flex items-center justify-between w-full text-left py-1 text-xs font-bold uppercase text-rust cursor-pointer"
-                            >
-                              <span>{category.name}</span>
-                              <ChevronDown
-                                size={13}
-                                className={`transform transition-transform duration-200 ${
-                                  isCatOpen ? "rotate-180" : ""
-                                }`}
-                              />
-                            </button>
+                          <div key={category.name} className="py-1 border-b border-[#E6DFD3]/40 last:border-b-0">
+                            <div className="flex items-center justify-between w-full">
+                              <Link
+                                to={`/shop?category=${encodeURIComponent(category.name)}`}
+                                onClick={() => setMobileOpen(false)}
+                                className="text-xs font-semibold uppercase tracking-wider text-charcoal/90 hover:text-rust py-1 transition-colors flex-1"
+                              >
+                                {category.name}
+                              </Link>
+                              {hasSubcats && (
+                                <button
+                                  onClick={() => setMobileActiveCategory(isCatOpen ? null : category.name)}
+                                  className="p-1 text-charcoal/50 hover:text-rust transition-colors cursor-pointer"
+                                  aria-label={`Toggle ${category.name} subcategories`}
+                                >
+                                  <ChevronDown
+                                    size={13}
+                                    className={`transform transition-transform duration-200 ${
+                                      isCatOpen ? "rotate-180 text-rust" : ""
+                                    }`}
+                                  />
+                                </button>
+                              )}
+                            </div>
 
-                            {isCatOpen && (
-                              <div className="pl-3 py-1.5 space-y-2 border-l border-[#D6A23F]/40 mt-1.5">
+                            {isCatOpen && hasSubcats && (
+                              <div className="pl-3 py-1.5 space-y-1.5 border-l border-[#D6A23F]/40 mt-1">
                                 <Link
-                                  to={`/shop?category=${encodeURIComponent(
-                                    category.name
-                                  )}`}
+                                  to={`/shop?category=${encodeURIComponent(category.name)}`}
                                   onClick={() => setMobileOpen(false)}
                                   className="text-[11.5px] text-rust font-bold uppercase tracking-wider block hover:underline"
                                 >
-                                  • View All {category.name} →
+                                  • View All {category.name}
                                 </Link>
                                 {category.subcats.map((sub) => (
                                   <Link
                                     key={sub}
-                                    to={`/shop?category=${encodeURIComponent(
-                                      category.name
-                                    )}&subcat=${encodeURIComponent(sub)}`}
+                                    to={`/shop?category=${encodeURIComponent(category.name)}&subcat=${encodeURIComponent(sub)}`}
                                     onClick={() => setMobileOpen(false)}
-                                    className="text-[11.5px] font-medium text-charcoal/80 hover:text-rust block py-0.5 transition-colors"
+                                    className="text-[11.5px] text-charcoal/70 hover:text-rust block py-0.5 transition-colors font-medium"
                                   >
                                     {sub}
                                   </Link>
@@ -600,13 +606,43 @@ export default function Navbar() {
                   Contact
                 </Link>
               </div>
+
+              {/* WhatsApp Styling Concierge Help Strip */}
+              <div className="pt-2 pb-1">
+                <a
+                  href="https://wa.me/918329683648?text=Hello%20Shreekamalinee%2C%20I%20would%20like%20assistance%20with%20a%20handloom%20saree."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 bg-gradient-to-r from-[#FAF7F2] to-[#F4EEE3] border border-[#D6A23F]/40 rounded-lg text-xs font-semibold text-charcoal hover:border-[#800020] active:scale-98 transition-all shadow-2xs group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-[#25D366]/15 text-[#25D366] flex items-center justify-center font-bold text-sm">
+                      💬
+                    </div>
+                    <div>
+                      <p className="font-bold text-[11.5px] text-charcoal group-hover:text-rust transition-colors">
+                        Saree Styling Concierge
+                      </p>
+                      <p className="text-[10px] text-charcoal/60">
+                        Chat on WhatsApp with Expert
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[12px] text-rust font-bold group-hover:translate-x-0.5 transition-transform">→</span>
+                </a>
+              </div>
             </div>
 
             {/* Drawer Footer (Account & Quick Help) */}
             <div className="p-4 border-t border-[#E6DFD3] bg-white space-y-2.5">
-              {isAuthenticated ? (
+              {isLoading ? (
+                <div className="space-y-2 animate-pulse py-2">
+                  <div className="h-10 w-full bg-[#F4EEE3] rounded-full" />
+                  <div className="h-9 w-full bg-[#E6DFD3]/60 rounded-full" />
+                </div>
+              ) : isAuthenticated ? (
                 <div className="space-y-1.5">
-                  <div className="px-3 py-2 bg-[#FAF7F2] border border-[#E6DFD3] rounded-sm text-xs mb-2">
+                  <div className="px-3 py-2 bg-gradient-to-r from-[#FAF7F2] to-[#F4EEE3] border border-[#E6DFD3] rounded-sm text-xs mb-2">
                     <p className="font-bold text-charcoal truncate">
                       {user?.firstName
                         ? `${user.firstName} ${user.lastName || ""}`
@@ -621,7 +657,7 @@ export default function Navbar() {
                     <Link
                       to="/admin/dashboard"
                       onClick={() => setMobileOpen(false)}
-                      className="py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-bold text-rust bg-rust/5 hover:bg-rust/10"
+                      className="py-2 px-3 rounded-sm flex items-center gap-2 text-xs font-bold text-[#800020] bg-[#800020]/10 hover:bg-[#800020]/15 active:scale-98 transition-all"
                     >
                       <User size={14} />
                       <span>Admin Dashboard</span>
@@ -631,7 +667,7 @@ export default function Navbar() {
                   <Link
                     to="/account/profile"
                     onClick={() => setMobileOpen(false)}
-                    className="py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-medium text-charcoal/80 hover:bg-[#F4EEE3]"
+                    className="py-2 px-3 rounded-sm flex items-center gap-2 text-xs font-medium text-charcoal/80 hover:bg-[#F4EEE3] active:scale-98 transition-all"
                   >
                     <User size={14} />
                     <span>My Profile</span>
@@ -640,7 +676,7 @@ export default function Navbar() {
                   <Link
                     to="/account/orders"
                     onClick={() => setMobileOpen(false)}
-                    className="py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-medium text-charcoal/80 hover:bg-[#F4EEE3]"
+                    className="py-2 px-3 rounded-sm flex items-center gap-2 text-xs font-medium text-charcoal/80 hover:bg-[#F4EEE3] active:scale-98 transition-all"
                   >
                     <Package size={14} />
                     <span>My Orders</span>
@@ -652,25 +688,25 @@ export default function Navbar() {
                       setMobileOpen(false);
                       navigate("/login");
                     }}
-                    className="w-full text-left py-1.5 px-3 rounded-sm flex items-center gap-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                    className="w-full text-left py-2 px-3 rounded-sm flex items-center gap-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 active:scale-98 transition-all cursor-pointer"
                   >
                     <LogOut size={14} />
                     <span>Sign Out</span>
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <Link
                     to="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="block w-full py-2.5 text-center bg-rust text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-xs hover:bg-rust-deep transition-colors"
+                    className="block w-full py-2.5 text-center bg-gradient-to-r from-[#800020] to-[#600018] hover:from-[#940026] hover:to-[#73001d] text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-md hover:shadow-lg active:scale-95 active:shadow-inner transition-all duration-200"
                   >
                     Login / Sign In
                   </Link>
                   <Link
                     to="/register"
                     onClick={() => setMobileOpen(false)}
-                    className="block w-full py-2 text-center border border-line text-charcoal font-semibold rounded-full uppercase tracking-wider text-xs bg-white hover:bg-cream-2 transition-colors"
+                    className="block w-full py-2 text-center border border-[#E6DFD3] hover:border-rust/40 text-charcoal hover:text-rust font-semibold rounded-full uppercase tracking-wider text-xs bg-[#FAF7F2] hover:bg-[#F4EEE3] active:scale-95 active:shadow-inner transition-all duration-200"
                   >
                     Create Account
                   </Link>

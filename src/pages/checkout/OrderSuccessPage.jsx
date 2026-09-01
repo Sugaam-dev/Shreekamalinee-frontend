@@ -10,7 +10,7 @@ import useSEO from "../../hooks/useSEO.js";
 
 export default function OrderSuccessPage() {
   const [searchParams] = useSearchParams();
-  const orderId = searchParams.get("orderId") || "SKM-89421";
+  const orderId = searchParams.get("orderId") || null;
 
   const { data: dbOrder } = useUserOrderDetailQuery(orderId);
   const { data: storeSettings } = useBankDetailsQuery();
@@ -41,7 +41,7 @@ export default function OrderSuccessPage() {
   const handleDownloadInvoice = () => {
     if (dbOrder) {
       generateTaxInvoice(dbOrder, storeSettings);
-    } else {
+    } else if (orderId) {
       generateTaxInvoice({ id: orderId, orderNumber: orderId, totalAmount: 0 }, storeSettings);
     }
   };
@@ -72,7 +72,7 @@ export default function OrderSuccessPage() {
                 Order Reference Number
               </span>
               <strong className="text-base md:text-lg font-serif text-charcoal">
-                #{dbOrder?.orderNumber || String(orderId).slice(0, 8).toUpperCase()}
+                {dbOrder?.orderNumber || `#${String(orderId).slice(0, 8).toUpperCase()}`}
               </strong>
             </div>
 

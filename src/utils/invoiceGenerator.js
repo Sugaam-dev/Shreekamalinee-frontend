@@ -8,7 +8,8 @@ import { formatCurrency, formatDate } from "./formatters.js";
 export function generateTaxInvoice(order, storeSettings = {}) {
   if (!order) return;
 
-  const invoiceNumber = `INV-${order.orderNumber || (order.id ? String(order.id).substring(0, 8).toUpperCase() : "SKM")}-${new Date(order.orderDate || Date.now()).getFullYear()}`;
+  const orderNum = order.orderNumber || (order.id ? `SK-${String(order.id).substring(0, 8).toUpperCase()}` : "SK-ORD");
+  const invoiceNumber = `INV-${orderNum}`;
   const gstin = storeSettings?.gstin || "27AAACR1234A1Z5";
   const storeName = "Shreekamalinee";
   const storeSubtitle = "Authentic Handloom & Heritage Silk Ateliers";
@@ -27,10 +28,11 @@ export function generateTaxInvoice(order, storeSettings = {}) {
   const customerPhone = order.shippingAddress?.phone || order.shippingAddress?.phoneNumber || "N/A";
 
   const items = order.items || [];
-  const subtotal = order.subtotal || order.totalAmount || 0;
-  const discount = order.discountAmount || 0;
-  const shipping = order.shippingFee || 0;
-  const total = order.totalAmount || 0;
+  const subtotal = Number(order.totalAmount ?? order.subtotal ?? 0);
+  const discount = Number(order.discountAmount || 0);
+  const shipping = Number(order.shippingFee ?? order.deliveryFee ?? 0);
+  const codFee = Number(order.codHandlingFee || 0);
+  const total = order.finalAmount != null ? Number(order.finalAmount) : Math.max(0, subtotal - discount + shipping + codFee);
 
   const html = `
 <!DOCTYPE html>
@@ -281,7 +283,7 @@ export function generateTaxInvoice(order, storeSettings = {}) {
         <div class="invoice-meta">
           Invoice No: <strong>${invoiceNumber}</strong><br>
           Date: <strong>${formatDate(order.orderDate)}</strong><br>
-          Order ID: <strong>#${order.orderNumber || order.id?.slice(0, 8).toUpperCase()}</strong><br>
+          Order Reference: <strong>${orderNum}</strong><br>
           Payment: <strong>${order.paymentMethod || "ONLINE"} (${order.paymentStatus || "PAID"})</strong>
         </div>
       </div>
@@ -383,12 +385,21 @@ export function generateTaxInvoice(order, storeSettings = {}) {
           <span>Insured Courier & Handling:</span>
           <span>${shipping === 0 ? "FREE" : formatCurrency(shipping)}</span>
         </div>
+        ${
+          codFee > 0
+            ? `
+        <div class="summary-row">
+          <span>COD Verification Fee:</span>
+          <span>${formatCurrency(codFee)}</span>
+        </div>`
+            : ""
+        }
         <div class="summary-row">
           <span>Taxes & GST (Included):</span>
           <span>5% / 12% IGST</span>
         </div>
         <div class="summary-row grand-total">
-          <span>Grand Total Payable:</span>
+          <span>Grand Total (Net Paid):</span>
           <span>${formatCurrency(total)}</span>
         </div>
       </div>

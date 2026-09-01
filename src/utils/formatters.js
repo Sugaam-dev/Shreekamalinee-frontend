@@ -55,8 +55,9 @@ export function getOrderStatusBadge(status) {
     case "DELIVERED":
       return { bg: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Delivered" };
     case "SHIPPED":
+      return { bg: "bg-blue-50 text-blue-700 border-blue-200", label: "Shipped" };
     case "OUT_FOR_DELIVERY":
-      return { bg: "bg-blue-50 text-blue-700 border-blue-200", label: "In Transit" };
+      return { bg: "bg-indigo-50 text-indigo-700 border-indigo-200", label: "Out for Delivery" };
     case "CONFIRMED":
     case "PROCESSING":
       return { bg: "bg-amber-50 text-amber-700 border-amber-200", label: "Processing" };

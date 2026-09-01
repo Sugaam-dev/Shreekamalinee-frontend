@@ -8,13 +8,10 @@ import {
   CheckCircle2,
   Lock,
   Plus,
-  ArrowRight,
   ShoppingBag,
   Tag,
   AlertTriangle,
-  FileText,
-  CheckSquare,
-  Square,
+  ArrowLeft,
 } from "lucide-react";
 import { useCart } from "../../context/CartContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -36,6 +33,9 @@ import Button from "../../components/common/Button.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import useSEO from "../../hooks/useSEO.js";
 import { INDIAN_STATES } from "../../utils/constants.js";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
+import { validators } from "../../utils/validation.js";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -66,11 +66,15 @@ export default function CheckoutPage() {
 
   const validCoupons = useMemo(() => {
     if (!Array.isArray(availableCoupons)) return [];
-    const now = new Date();
-    return availableCoupons.filter((c) => {
-      if (c.active === false) return false;
-      if (c.expiryDate && new Date(c.expiryDate) < now) return false;
-      return true;
+    return [...availableCoupons].sort((a, b) => {
+      const isAInactive = Boolean(a.isUsedByUser || a.isExpired || a.active === false);
+      const isBInactive = Boolean(b.isUsedByUser || b.isExpired || b.active === false);
+      if (isAInactive !== isBInactive) {
+        return isAInactive ? 1 : -1;
+      }
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
     });
   }, [availableCoupons]);
 
@@ -84,9 +88,6 @@ export default function CheckoutPage() {
     freeShippingThreshold = 1499,
     standardShippingFee = 99,
     isFreeShippingPromo = false,
-    shippingFee,
-    grandTotal,
-    clearCart,
     applyCouponCode,
     removeCouponCode,
     showToast,
@@ -109,8 +110,22 @@ export default function CheckoutPage() {
   }, [directBuyItem, subtotal]);
 
   const checkoutDiscount = useMemo(() => {
+    if (!appliedCoupon || checkoutSubtotal === 0) return 0;
+    if (typeof appliedCoupon.discountAmount === "number" && appliedCoupon.discountAmount > 0) {
+      return Math.min(appliedCoupon.discountAmount, checkoutSubtotal);
+    }
+    if (typeof appliedCoupon.calculatedDiscount === "number" && appliedCoupon.calculatedDiscount > 0) {
+      return Math.min(appliedCoupon.calculatedDiscount, checkoutSubtotal);
+    }
+    if (appliedCoupon.discountType === "PERCENTAGE" && appliedCoupon.discountValue) {
+      const calculated = (checkoutSubtotal * Number(appliedCoupon.discountValue)) / 100;
+      return appliedCoupon.maxDiscountAmount ? Math.min(calculated, Number(appliedCoupon.maxDiscountAmount)) : calculated;
+    }
+    if (appliedCoupon.discountType === "FIXED" && appliedCoupon.discountValue) {
+      return Math.min(Number(appliedCoupon.discountValue), checkoutSubtotal);
+    }
     return discountAmount;
-  }, [discountAmount]);
+  }, [appliedCoupon, checkoutSubtotal, discountAmount]);
 
   const codHandlingFee = storeSettings?.codHandlingFee != null ? Number(storeSettings.codHandlingFee) : 99;
 
@@ -214,9 +229,14 @@ export default function CheckoutPage() {
 
   const handleAddNewAddress = async (e) => {
     e.preventDefault();
+    const phoneError = validators.phone(newAddressForm.phone);
+    if (phoneError) {
+      showToast(phoneError, "warning");
+      return;
+    }
+
     if (
       !newAddressForm.name.trim() ||
-      !newAddressForm.phone.trim() ||
       !newAddressForm.addressLine1.trim() ||
       !newAddressForm.city.trim() ||
       !newAddressForm.state.trim() ||
@@ -226,13 +246,12 @@ export default function CheckoutPage() {
       return;
     }
 
-    const cleanPhone = newAddressForm.phone.trim().replace(/\D/g, "");
-    const formattedPhone = cleanPhone.length === 10 ? cleanPhone : cleanPhone.slice(-10);
+    const cleanPhone = newAddressForm.phone.replace(/[^\d+]/g, "").trim();
 
     const payload = {
       fullName: newAddressForm.name.trim(),
-      phone: formattedPhone,
-      phoneNumber: formattedPhone,
+      phone: cleanPhone,
+      phoneNumber: cleanPhone,
       streetAddress: (newAddressForm.addressLine1.trim() + (newAddressForm.addressLine2 ? `, ${newAddressForm.addressLine2.trim()}` : "")).trim(),
       addressLine1: newAddressForm.addressLine1.trim(),
       addressLine2: newAddressForm.addressLine2 ? newAddressForm.addressLine2.trim() : "",
@@ -340,7 +359,7 @@ export default function CheckoutPage() {
                 key: razorpayData.keyId || "rzp_test_dummy",
                 amount: razorpayData.amount,
                 currency: "INR",
-                name: "Shree Kamalinee",
+                name: "Shreekamalinee",
                 description: `Order #${createdOrderId}`,
                 order_id: razorpayData.razorpayOrderId,
                 handler: async function (response) {
@@ -375,17 +394,11 @@ export default function CheckoutPage() {
         setIsProcessing(false);
         navigate(`/checkout/success?orderId=${createdOrderId}`);
         return;
-      }
-
-      // Guest simulation
-      setTimeout(async () => {
+      } else {
         setIsProcessing(false);
-        const generatedOrderId = "SKM-" + Math.floor(10000 + Math.random() * 90000);
-        if (!directBuyItem) {
-          await removePurchasedItems(checkoutItems.map((i) => i.id));
-        }
-        navigate(`/checkout/success?orderId=${generatedOrderId}`);
-      }, 1000);
+        showToast("Please sign in to complete checkout and secure your order.", "warning");
+        navigate("/login", { state: { from: "/checkout" } });
+      }
     } catch (err) {
       setIsProcessing(false);
       showToast(err.response?.data?.message || "Order placement failed. Please try again.", "warning");
@@ -417,16 +430,45 @@ export default function CheckoutPage() {
 
     <div className="bg-cream min-h-screen py-4 sm:py-8 md:py-14">
       <div className="max-w-[1280px] 2xl:max-w-[1600px] 3xl:max-w-[2000px] 4k:max-w-[2400px] mx-auto px-3 sm:px-6 md:px-10 2xl:px-12">
-        <Breadcrumb items={[{ label: "Shopping Bag", to: "/cart" }, { label: "Secure Checkout" }]} />
+        <div className="mb-2">
+          {directBuyItem ? (
+            <Breadcrumb
+              items={[
+                { label: directBuyItem.name || "Handloom Saree", to: directBuyItem.productId ? `/details/${directBuyItem.productId}` : "/shop" },
+                { label: "Direct Checkout" },
+              ]}
+            />
+          ) : (
+            <Breadcrumb items={[{ label: "Shopping Bag", to: "/cart" }, { label: "Secure Checkout" }]} />
+          )}
+        </div>
+
+        {/* Back Link */}
+        <button
+          type="button"
+          onClick={() => {
+            if (directBuyItem?.productId) {
+              navigate(`/details/${directBuyItem.productId}`);
+            } else if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate("/cart");
+            }
+          }}
+          className="inline-flex items-center gap-1.5 text-xs text-charcoal/60 hover:text-rust font-semibold transition-colors cursor-pointer mb-3"
+        >
+          <ArrowLeft size={13} />
+          <span>{directBuyItem ? "Back to Product Details" : "Back to Shopping Bag"}</span>
+        </button>
 
         {/* Header Title */}
         <div className="pb-4 mb-4 sm:mb-8 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] tracking-[0.2em] uppercase font-bold text-rust">
-              Step 2 of 2
+              {directBuyItem ? "Express Order" : "Step 2 of 2"}
             </span>
             <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-charcoal">
-              Checkout & Payment
+              {directBuyItem ? "Express Direct Checkout" : "Checkout & Payment"}
             </h1>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
@@ -699,51 +741,89 @@ export default function CheckoutPage() {
                   <p className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">
                     Available Offers:
                   </p>
-                  <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-                    {validCoupons.map((c) => (
-                      <div
-                        key={c.id || c.code}
-                        className={`p-1.5 border border-dashed rounded-xs flex items-center justify-between gap-1.5 text-xs ${
-                          c.isUsedByUser
-                            ? "bg-gray-100/80 border-gray-300 opacity-60"
-                            : "bg-cream-2/40 border-[#D6A23F]/60"
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-mono font-bold text-[10.5px] text-rust bg-rust/5 px-1 py-0.5 rounded-xs border border-rust/20">
-                              {c.code}
-                            </span>
-                            {c.isUsedByUser ? (
-                              <span className="text-[9px] font-bold uppercase bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-xs">
-                                Already Used
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {validCoupons.map((c) => {
+                      const minSpendVal = Number(c.minOrderAmount || c.minPurchaseAmount || 0);
+                      const maxCapVal = Number(c.maxDiscountAmount || 0);
+                      const isExpired = Boolean(c.isExpired || (c.expiryDate && new Date(c.expiryDate) < new Date()) || c.active === false);
+                      const isUsed = Boolean(c.isUsedByUser);
+                      const isInactive = isExpired || isUsed;
+                      const isBelowMinSpend = !isInactive && minSpendVal > 0 && checkoutSubtotal < minSpendVal;
+
+                      return (
+                        <div
+                          key={c.id || c.code}
+                          className={`p-2 border border-dashed rounded-xs flex items-center justify-between gap-2 text-xs transition-colors ${
+                            isInactive
+                              ? "bg-gray-100/80 border-gray-300 opacity-60"
+                              : isBelowMinSpend
+                              ? "bg-amber-50/50 border-amber-300/80"
+                              : "bg-cream-2/40 border-[#D6A23F]/60"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono font-bold text-[10.5px] text-rust bg-rust/5 px-1 py-0.5 rounded-xs border border-rust/20">
+                                {c.code}
                               </span>
-                            ) : null}
+                              {isUsed ? (
+                                <span className="text-[9px] font-bold uppercase bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-xs">
+                                  Already Used
+                                </span>
+                              ) : isExpired ? (
+                                <span className="text-[9px] font-bold uppercase bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-xs">
+                                  Expired
+                                </span>
+                              ) : null}
+                              <span className="text-[10.5px] font-semibold text-charcoal truncate">
+                                {c.discountType === "PERCENTAGE" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}
+                              </span>
+                            </div>
+                            <div className="text-[9.5px] text-charcoal/70 mt-0.5 space-y-0.5">
+                              {minSpendVal > 0 && (
+                                <p className={isBelowMinSpend ? "text-amber-800 font-semibold" : ""}>
+                                  Min spend: ₹{minSpendVal}
+                                  {isBelowMinSpend && (
+                                    <span className="ml-1 text-amber-700">
+                                      (add ₹{minSpendVal - checkoutSubtotal} more)
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                              {maxCapVal > 0 && (
+                                <p className="text-charcoal/50">Max cap: ₹{maxCapVal}</p>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[10.5px] font-semibold text-charcoal ml-0.5 truncate block mt-0.5">
-                            {c.discountType === "PERCENTAGE" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}
-                          </span>
-                          {c.minPurchaseAmount > 0 && (
-                            <span className="block text-[9.5px] text-charcoal/50">
-                              Min spend: ₹{c.minPurchaseAmount}
+                          {isUsed ? (
+                            <span className="px-2 py-0.5 text-[9.5px] font-bold text-gray-500 bg-gray-200 rounded-xs shrink-0 cursor-not-allowed">
+                              Used
                             </span>
+                          ) : isExpired ? (
+                            <span className="px-2 py-0.5 text-[9.5px] font-bold text-rose-500 bg-rose-50 rounded-xs shrink-0 cursor-not-allowed">
+                              Expired
+                            </span>
+                          ) : isBelowMinSpend ? (
+                            <button
+                              type="button"
+                              onClick={() => showToast(`Please add ₹${minSpendVal - checkoutSubtotal} more to unlock this coupon.`, "warning")}
+                              className="px-2 py-0.5 text-[9.5px] font-bold text-amber-800 bg-amber-100/80 border border-amber-300 rounded-xs hover:bg-amber-200 transition-colors cursor-pointer shrink-0"
+                              title={`Min spend ₹${minSpendVal} required`}
+                            >
+                              Min ₹{minSpendVal}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => applyCouponCode(c.code, checkoutSubtotal)}
+                              className="px-2 py-0.5 text-[10px] font-bold text-rust hover:text-white hover:bg-rust border border-rust rounded-xs transition-colors cursor-pointer shrink-0"
+                            >
+                              Apply
+                            </button>
                           )}
                         </div>
-                        {c.isUsedByUser ? (
-                          <span className="px-2 py-0.5 text-[9.5px] font-bold text-gray-500 bg-gray-200 rounded-xs shrink-0 cursor-not-allowed">
-                            Used
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => applyCouponCode(c.code, checkoutSubtotal)}
-                            className="px-2 py-0.5 text-[10px] font-bold text-rust hover:text-white hover:bg-rust border border-rust rounded-xs transition-colors cursor-pointer shrink-0"
-                          >
-                            Apply
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -853,25 +933,16 @@ export default function CheckoutPage() {
               <label className="block text-xs uppercase font-bold tracking-wider text-charcoal mb-1">
                 Mobile Number *
               </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-charcoal/50">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  required
-                  maxLength={10}
-                  value={newAddressForm.phone}
-                  onChange={(e) =>
-                    setNewAddressForm({
-                      ...newAddressForm,
-                      phone: e.target.value.replace(/\D/g, ""),
-                    })
-                  }
-                  placeholder="9876543210"
-                  className="w-full pl-12 pr-3.5 py-2.5 text-xs border border-line rounded-xs bg-white outline-none focus:border-rust font-medium"
-                />
-              </div>
+              <PhoneInput
+                defaultCountry="in"
+                value={newAddressForm.phone}
+                onChange={(phone) => setNewAddressForm({ ...newAddressForm, phone })}
+                className="w-full text-xs"
+                inputClassName="!w-full !py-2.5 !px-3.5 !text-xs !bg-white !border-line !rounded-r-xs !font-medium !text-charcoal focus:!border-rust"
+                countrySelectorStyleProps={{
+                  buttonClassName: "!bg-gray-50 !border-line !rounded-l-xs !px-2.5",
+                }}
+              />
             </div>
           </div>
 

@@ -3,25 +3,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Plus,
-  Tag,
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Calendar,
-  Layers,
   Search,
   AlertTriangle,
   X,
-  Users,
   ChevronDown,
   ChevronRight,
   Folder,
   FolderOpen,
-  Package,
-  Check,
-  CheckSquare,
-  Square,
   Sparkles,
+  Users,
+  ExternalLink,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "../../utils/formatters.js";
 import { couponSchema } from "../../schemas/couponSchemas.js";
@@ -29,6 +23,7 @@ import {
   useCouponsQuery,
   useCreateCouponMutation,
   useDeleteCouponMutation,
+  useCouponUsagesQuery,
 } from "../../queries/useCouponQueries.js";
 import { useCategoriesQuery } from "../../queries/useCategoryQueries.js";
 import { useProductsQuery } from "../../queries/useProductQueries.js";
@@ -52,6 +47,9 @@ export default function AdminCouponsPage() {
   const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'active' | 'expired'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedCouponForUsages, setSelectedCouponForUsages] = useState(null);
+
+  const { data: couponUsagesList = [], isLoading: isUsagesLoading } = useCouponUsagesQuery(selectedCouponForUsages?.id);
 
   // Hierarchy Selection State (Categories, Subcategories & Products)
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
@@ -210,13 +208,17 @@ export default function AdminCouponsPage() {
 
   const onSubmit = async (data) => {
     try {
+      const minVal = Number(data.minPurchaseAmount || data.minOrderAmount || 0);
+      const maxVal = data.maxDiscountAmount ? Number(data.maxDiscountAmount) : null;
       const payload = {
         code: data.code.trim().toUpperCase(),
         discountType: data.discountType,
         discountValue: Number(data.discountValue),
-        minPurchaseAmount: Number(data.minPurchaseAmount || 0),
-        maxDiscountAmount: data.maxDiscountAmount ? Number(data.maxDiscountAmount) : undefined,
+        minOrderAmount: minVal,
+        minPurchaseAmount: minVal,
+        maxDiscountAmount: maxVal,
         expiryDate: new Date(data.expiryDate).toISOString(),
+        isActive: Boolean(data.active),
         active: Boolean(data.active),
         applicableCategoryIds: selectedCategoryIds,
         applicableProductIds: selectedProductIds,
@@ -243,12 +245,19 @@ export default function AdminCouponsPage() {
     }
   };
 
-  // Filter and sort coupons (Latest on Top)
   const now = new Date();
+  const safeCoupons = useMemo(() => {
+    if (Array.isArray(coupons)) return coupons;
+    if (Array.isArray(coupons?.content)) return coupons.content;
+    if (Array.isArray(coupons?.data)) return coupons.data;
+    return [];
+  }, [coupons]);
+
+  // Filter and sort coupons (Latest on Top)
   const filteredCoupons = useMemo(() => {
-    return coupons
+    return safeCoupons
       .filter((c) => {
-        const matchesSearch = c.code.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = (c.code || "").toLowerCase().includes(searchTerm.toLowerCase());
         const isExpired = c.expiryDate && new Date(c.expiryDate) < now;
 
         if (statusFilter === "active") return matchesSearch && c.active && !isExpired;
@@ -256,7 +265,7 @@ export default function AdminCouponsPage() {
         return matchesSearch;
       })
       .sort((a, b) => new Date(b.createdAt || b.expiryDate || 0).getTime() - new Date(a.createdAt || a.expiryDate || 0).getTime());
-  }, [coupons, searchTerm, statusFilter, now]);
+  }, [safeCoupons, searchTerm, statusFilter]);
 
 
   return (
@@ -287,7 +296,7 @@ export default function AdminCouponsPage() {
                   statusFilter === "all" ? "bg-[#800020] text-white" : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                All ({coupons.length})
+                All ({safeCoupons.length})
               </button>
               <button
                 type="button"
@@ -331,6 +340,7 @@ export default function AdminCouponsPage() {
                   <th className="py-3.5 px-4">Discount Value</th>
                   <th className="py-3.5 px-4">Criteria & Caps</th>
                   <th className="py-3.5 px-4">Category / VIP Scope</th>
+                  <th className="py-3.5 px-4">Redemptions</th>
                   <th className="py-3.5 px-4">Validity</th>
                   <th className="py-3.5 px-4 text-right">Action</th>
                 </tr>
@@ -338,11 +348,11 @@ export default function AdminCouponsPage() {
               <tbody className="divide-y divide-gray-100 font-medium">
                 {isCouponsLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={6} />
+                    <TableRowSkeleton key={i} cols={7} />
                   ))
                 ) : filteredCoupons.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-gray-400">
+                    <td colSpan={7} className="py-12 text-center text-gray-400">
                       No discount vouchers found.
                     </td>
                   </tr>
@@ -367,12 +377,22 @@ export default function AdminCouponsPage() {
 
                         {/* Criteria */}
                         <td className="py-3 px-4 text-gray-600">
-                          <div>Min Purchase: {formatCurrency(coupon.minPurchaseAmount || 0)}</div>
-                          {coupon.maxDiscountAmount && (
-                            <div className="text-[11px] text-gray-400">
-                              Max Cap: {formatCurrency(coupon.maxDiscountAmount)}
-                            </div>
-                          )}
+                          <div>
+                            Min Spend:{" "}
+                            <span className="font-semibold text-gray-900">
+                              {(Number(coupon.minOrderAmount || coupon.minPurchaseAmount) || 0) > 0
+                                ? formatCurrency(coupon.minOrderAmount || coupon.minPurchaseAmount)
+                                : "No Minimum"}
+                            </span>
+                          </div>
+                          <div>
+                            Max Discount:{" "}
+                            <span className="font-semibold text-gray-900">
+                              {(Number(coupon.maxDiscountAmount) || 0) > 0
+                                ? formatCurrency(coupon.maxDiscountAmount)
+                                : "No Limit"}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Scope */}
@@ -398,6 +418,24 @@ export default function AdminCouponsPage() {
                               Exclusive to {coupon.applicableUserEmails.length} VIP Users
                             </div>
                           )}
+                        </td>
+
+                        {/* Redemptions */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-gray-900">{coupon.timesUsed || 0}</span>
+                            <span className="text-gray-500 text-[11px]">
+                              {coupon.timesUsed === 1 ? "redemption" : "redemptions"}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCouponForUsages(coupon)}
+                            className="inline-flex items-center gap-1 mt-1 text-[10.5px] font-bold text-[#800020] hover:underline cursor-pointer"
+                          >
+                            <Users size={11} />
+                            <span>View User History</span>
+                          </button>
                         </td>
 
                         {/* Validity Status */}
@@ -910,6 +948,80 @@ export default function AdminCouponsPage() {
                 onClick={handleConfirmDelete}
               >
                 {deleteCouponMutation.isPending ? "Deleting..." : "Delete Coupon"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* 3. Coupon Redemption History Modal */}
+        <Modal
+          isOpen={!!selectedCouponForUsages}
+          onClose={() => setSelectedCouponForUsages(null)}
+          title={`Redemption History: ${selectedCouponForUsages?.code || "Coupon"}`}
+          description="View all patrons who have applied and redeemed this single-use discount voucher"
+          size="lg"
+        >
+          <div className="space-y-4 text-xs">
+            {isUsagesLoading ? (
+              <div className="py-8 text-center text-gray-500">Loading redemption logs...</div>
+            ) : couponUsagesList.length === 0 ? (
+              <div className="p-8 text-center bg-gray-50 rounded-xs border border-dashed border-gray-200 text-gray-500">
+                <Users size={24} className="mx-auto mb-2 text-gray-400 opacity-60" />
+                <p className="font-semibold text-gray-700">No Redemptions Yet</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  This voucher has not been redeemed on any completed or manual orders.
+                </p>
+              </div>
+            ) : (
+              <div className="border border-gray-200 rounded-xs overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-[#FAF7F2] border-b border-gray-200 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                    <tr>
+                      <th className="py-2.5 px-3">Patron Customer</th>
+                      <th className="py-2.5 px-3">Contact Email & Phone</th>
+                      <th className="py-2.5 px-3">Order Number</th>
+                      <th className="py-2.5 px-3 text-right">Redeemed At</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 font-medium">
+                    {couponUsagesList.map((usage) => (
+                      <tr key={usage.id} className="hover:bg-gray-50">
+                        <td className="py-2.5 px-3 font-semibold text-gray-900">
+                          {usage.userFullName || "Patron Customer"}
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-600">
+                          <div>{usage.userEmail}</div>
+                          {usage.userPhone && (
+                            <div className="text-[10.5px] text-gray-400">{usage.userPhone}</div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {usage.orderNumber ? (
+                            <span className="font-mono font-bold text-[#800020] bg-[#800020]/5 px-1.5 py-0.5 rounded-xs border border-[#800020]/20">
+                              {usage.orderNumber}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic text-[11px]">N/A</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-gray-500">
+                          {formatDate(usage.usedAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedCouponForUsages(null)}
+              >
+                Close History
               </Button>
             </div>
           </div>

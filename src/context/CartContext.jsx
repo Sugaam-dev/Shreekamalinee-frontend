@@ -128,7 +128,7 @@ export function CartProvider({ children }) {
           if (isMounted) setCart([]);
         }
 
-        // 4. Fetch authoritative Wishlist directly from PostgreSQL
+        // 5. Fetch authoritative Wishlist directly from PostgreSQL
         try {
           const serverWishlist = await wishlistApi.getWishlist();
           if (isMounted) {
@@ -178,6 +178,11 @@ export function CartProvider({ children }) {
 
 
   const showToast = useCallback((msg, type = "info") => {
+    if (!msg) {
+      // Immediately dismiss toast (used by close button)
+      setToast({ show: false, msg: "", type: "info" });
+      return;
+    }
     setToast({ show: true, msg, type });
     setTimeout(() => setToast({ show: false, msg: "", type: "info" }), 3200);
   }, []);
@@ -443,19 +448,26 @@ export function CartProvider({ children }) {
 
 
   const [selectedItemIds, setSelectedItemIds] = useState(() => new Set());
+  const [seenItemIds, setSeenItemIds] = useState(() => new Set());
 
-  // Automatically select all cart items by default
+  // Automatically select newly added cart items by default
   useEffect(() => {
-    setSelectedItemIds((prev) => {
-      const next = new Set();
-      const isFirstInit = !prev.has("__init__");
+    setSelectedItemIds((prevSelected) => {
+      const next = new Set(prevSelected);
+      let changed = false;
       cart.forEach((item) => {
-        if (isFirstInit || prev.has(item.id)) {
+        if (!seenItemIds.has(item.id)) {
           next.add(item.id);
+          changed = true;
         }
       });
-      next.add("__init__");
-      return next;
+      return changed ? next : prevSelected;
+    });
+
+    setSeenItemIds((prevSeen) => {
+      const nextSeen = new Set(prevSeen);
+      cart.forEach((item) => nextSeen.add(item.id));
+      return nextSeen;
     });
   }, [cart]);
 
@@ -529,7 +541,10 @@ export function CartProvider({ children }) {
   }, [selectedCartItems]);
 
   const discountAmount = useMemo(() => {
-    if (!appliedCoupon || subtotal === 0) return 0;
+    if (!appliedCoupon) return 0;
+    if (subtotal === 0) {
+      return Number(appliedCoupon.discountAmount) || Number(appliedCoupon.calculatedDiscount) || 0;
+    }
     if (typeof appliedCoupon.discountAmount === "number" && appliedCoupon.discountAmount > 0) {
       return Math.min(appliedCoupon.discountAmount, subtotal);
     }
@@ -572,10 +587,8 @@ export function CartProvider({ children }) {
         return false;
       }
       const effectiveSubtotal = typeof customSubtotal === "number" ? customSubtotal : subtotal;
-      console.log(`[Coupon Validation] Checking code: "${cleanCode}" with subtotal: ₹${effectiveSubtotal}`);
       try {
         const res = await couponApi.validateCoupon(cleanCode, effectiveSubtotal);
-        console.log("[Coupon Validation] API Response:", res);
         if (res && res.valid) {
           const discountVal =
             Number(res.discountAmount) ||
@@ -599,7 +612,6 @@ export function CartProvider({ children }) {
           return false;
         }
       } catch (err) {
-        console.error("[Coupon Validation Error]:", err);
         showToast(err.response?.data?.message || "Invalid or expired promo code", "warning");
         return false;
       }

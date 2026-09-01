@@ -185,18 +185,11 @@ export default function HomePage() {
                     "{rev.quote}"
                   </p>
                 </div>
-                <div className="flex items-center gap-4 border-t border-line/55 pt-4">
-                  <img
-                    src={rev.avatar}
-                    alt={rev.name}
-                    className="w-11 h-11 rounded-full object-cover shadow-sm"
-                  />
-                  <div>
-                    <h4 className="text-sm font-bold text-charcoal">{rev.name}</h4>
-                    <span className="text-[11px] text-charcoal/40 font-medium uppercase tracking-wide">
-                      Verified Buyer · {rev.item}
-                    </span>
-                  </div>
+                <div className="border-t border-line/55 pt-4">
+                  <h4 className="text-sm font-bold text-charcoal">{rev.name}</h4>
+                  <span className="text-[11px] text-charcoal/45 font-medium uppercase tracking-wide block mt-0.5">
+                    Verified Patron · {rev.item}
+                  </span>
                 </div>
               </div>
             ))}

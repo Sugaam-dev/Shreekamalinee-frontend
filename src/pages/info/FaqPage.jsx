@@ -13,15 +13,15 @@ export default function FaqPage() {
 
   const faqs = [
     {
-      category: "Ordering & Customization",
+      category: "Ordering & Handloom Details",
       items: [
         {
           q: "How do I know if a saree or dress material is in stock?",
-          a: "All products listed with an 'Add to Bag' button are ready to dispatch in our boutique inventory. If a piece is marked 'Sold Out', you can reach out via WhatsApp to place an artisan pre-order.",
+          a: "All products listed with an 'Add to Bag' button are ready for immediate dispatch from our studio inventory. If a piece is marked 'Sold Out', you can reach out via WhatsApp to inquire about loom restocking timelines.",
         },
         {
-          q: "Can I customize the blouse piece stitching or saree fall/pico?",
-          a: "Yes! We provide bespoke complimentary Fall & Pico finishing on request. For customized blouse tailoring, connect with our boutique styling team via our WhatsApp concierge before or immediately after placing your order.",
+          q: "Do the sarees include a matching blouse piece?",
+          a: "Yes! Most of our authentic handloom sarees include an unstitched matching or contrasting blouse piece fabric attached directly to the weave, as detailed on each product page.",
         },
       ],
     },

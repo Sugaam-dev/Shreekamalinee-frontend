@@ -17,15 +17,22 @@ export const validators = {
   },
 
   /**
-   * Validate 10-digit Indian phone number.
+   * Validate international or 10-digit mobile number with country code.
    * @param {string} phone
    * @returns {string|null}
    */
   phone(phone) {
-    if (!phone || !phone.trim()) return "Mobile number is required.";
-    const cleanPhone = phone.replace(/\D/g, "");
-    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
-      return "Please enter a valid 10-digit mobile number starting with 6-9.";
+    if (!phone || !String(phone).trim()) return "Mobile contact number is required.";
+    const cleanPhone = String(phone).replace(/[^\d+]/g, "");
+    if (!cleanPhone || cleanPhone === "+91" || cleanPhone === "+") {
+      return "Mobile contact number is required.";
+    }
+    const digitsOnly = cleanPhone.replace(/\D/g, "");
+    if (digitsOnly.length < 10) {
+      return "Please enter a valid complete mobile number (minimum 10 digits).";
+    }
+    if (digitsOnly.length > 15) {
+      return "Phone number cannot exceed 15 digits.";
     }
     return null;
   },
@@ -37,7 +44,7 @@ export const validators = {
    */
   password(password) {
     if (!password) return "Password is required.";
-    if (password.length < 6) return "Password must be at least 6 characters long.";
+    if (password.length < 8) return "Password must be at least 8 characters long.";
     return null;
   },
 

@@ -86,7 +86,9 @@ export default function ProfilePage() {
 
   const newPasswordVal = watchPassword("newPassword") || "";
 
-  // Sync profile form when server data arrives
+  // Sync profile form when server data arrives — use stable primitives as deps to avoid infinite loops
+  const activeEmail = activeProfile?.email;
+  const activeFirstName = activeProfile?.firstName;
   useEffect(() => {
     if (activeProfile && (activeProfile.firstName || activeProfile.email)) {
       resetProfile({
@@ -95,7 +97,8 @@ export default function ProfilePage() {
         phone: activeProfile.phone || activeProfile.phoneNumber || "+91",
       });
     }
-  }, [activeProfile, resetProfile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEmail, activeFirstName, resetProfile]);
 
   const onProfileSubmit = async (data) => {
     setServerError("");
@@ -143,7 +146,7 @@ export default function ProfilePage() {
   return (
     <AccountLayout
       title="Personal Profile & Credentials"
-      subtitle="Update your contact details for tailored saree orders and seamless courier dispatch"
+      subtitle="Update your contact details for smooth order processing and seamless courier dispatch"
     >
       <div className="max-w-2xl space-y-10">
         {/* Profile Edit Form */}

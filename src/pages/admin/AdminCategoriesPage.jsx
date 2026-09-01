@@ -31,6 +31,7 @@ import AdminLayout from "../../components/admin/AdminLayout.jsx";
 import Button from "../../components/common/Button.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import { TableRowSkeleton } from "../../components/common/Skeleton.jsx";
+import { validateImageFile, ACCEPT_IMAGE_STRING } from "../../utils/fileValidation.js";
 
 // Known smart suggestions presets for core handloom & apparel collections
 const PRESET_SUGGESTIONS = {
@@ -141,6 +142,13 @@ export default function AdminCategoriesPage() {
 
   const handleFileChange = (file) => {
     if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
+      return;
+    }
+
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   };
@@ -280,6 +288,13 @@ export default function AdminCategoriesPage() {
 
   const handleImageUpload = async (catId, file) => {
     if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
+      return;
+    }
+
     try {
       await uploadImageMutation.mutateAsync({ id: catId, file });
       showToast("Category banner image uploaded successfully!", "success");
@@ -425,9 +440,14 @@ export default function AdminCategoriesPage() {
                               <Upload size={12} />
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept={ACCEPT_IMAGE_STRING}
                                 className="hidden"
-                                onChange={(e) => handleImageUpload(category.id, e.target.files[0])}
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    handleImageUpload(category.id, e.target.files[0]);
+                                    e.target.value = "";
+                                  }
+                                }}
                               />
                             </label>
                           </div>
@@ -585,12 +605,17 @@ export default function AdminCategoriesPage() {
                   <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-gray-300 hover:border-[#800020] rounded-xs cursor-pointer bg-gray-50 hover:bg-gray-100/70 transition-colors">
                     <Upload size={18} className="text-[#800020] mb-1" />
                     <span className="text-xs font-semibold text-gray-700">Choose Image File</span>
-                    <span className="text-[10px] text-gray-400">PNG, JPG, WEBP up to 5MB</span>
+                    <span className="text-[10px] text-gray-400">PNG, JPG, WEBP, GIF (up to 10MB)</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept={ACCEPT_IMAGE_STRING}
                       className="hidden"
-                      onChange={(e) => handleFileChange(e.target.files[0])}
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          handleFileChange(e.target.files[0]);
+                          e.target.value = "";
+                        }
+                      }}
                     />
                   </label>
                 </div>

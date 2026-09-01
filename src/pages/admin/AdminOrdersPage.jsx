@@ -8,18 +8,20 @@ import {
   CheckCircle2,
   XCircle,
   Truck,
-  MapPin,
-  CreditCard,
-  Download,
-  Calendar,
   ExternalLink,
-  ShieldCheck,
-  AlertTriangle,
   Receipt,
-  QrCode,
-  Package,
+  Plus,
+  MessageCircle,
+  Tag,
+  ShoppingBag,
+  UserCheck,
+  Sparkles,
+  ShieldCheck,
+  CreditCard,
+  User,
+  Check,
 } from "lucide-react";
-import { formatCurrency, formatDate, getOrderStatusBadge } from "../../utils/formatters.js";
+import { formatCurrency, formatDate } from "../../utils/formatters.js";
 import { orderStatusUpdateSchema } from "../../schemas/orderSchemas.js";
 import {
   useAdminOrdersQuery,
@@ -27,8 +29,11 @@ import {
   useUpdateOrderStatusMutation,
   useApproveManualPaymentMutation,
   useRejectManualPaymentMutation,
+  useCreateAdminManualOrderMutation,
 } from "../../queries/useOrderQueries.js";
-import orderApi from "../../api/orderApi.js";
+import { useProductsQuery } from "../../queries/useProductQueries.js";
+import { useCustomersQuery } from "../../queries/useCustomerQueries.js";
+import couponApi from "../../api/couponApi.js";
 import { useCart } from "../../context/CartContext.jsx";
 import AdminLayout from "../../components/admin/AdminLayout.jsx";
 import Button from "../../components/common/Button.jsx";
@@ -37,7 +42,7 @@ import { TableRowSkeleton } from "../../components/common/Skeleton.jsx";
 
 export default function AdminOrdersPage() {
   const { showToast } = useCart();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const { data: orders = [], isLoading: isOrdersLoading } = useAdminOrdersQuery();
   const { data: stats } = useAdminDashboardStatsQuery();
@@ -143,6 +148,7 @@ export default function AdminOrdersPage() {
     return orderList
       .filter((order) => {
         const matchesSearch =
+          order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           order.shippingAddress?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           order.trackingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -175,6 +181,19 @@ export default function AdminOrdersPage() {
     <AdminLayout
       title="Orders & Manual Payment Audits"
       subtitle="Verify customer payments, audit manual UPI screenshot proofs, and dispatch courier tracking numbers"
+      actions={
+        <Link to="/admin/orders/new">
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            className="shadow-sm font-semibold cursor-pointer"
+          >
+            Book WhatsApp / Offline Order
+          </Button>
+        </Link>
+      }
     >
       <div className="space-y-6">
         {/* KPI Banner Cards */}
@@ -347,7 +366,7 @@ export default function AdminOrdersPage() {
                           to={`/admin/orders/${order.id}`}
                           className="font-mono font-bold text-gray-900 hover:text-[#800020] transition-colors"
                         >
-                          #{order.id?.slice(0, 8).toUpperCase()}
+                          {order.orderNumber || `#${order.id?.slice(0, 8).toUpperCase()}`}
                         </Link>
                         <div className="text-[11px] text-gray-500 mt-0.5">
                           {formatDate(order.createdAt)}
@@ -426,8 +445,19 @@ export default function AdminOrdersPage() {
                       </td>
 
                       {/* Total Amount */}
-                      <td className="py-3 px-4 font-bold text-gray-900">
-                        {formatCurrency(order.totalAmount)}
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-gray-900">
+                          {formatCurrency(
+                            order.finalAmount != null
+                              ? order.finalAmount
+                              : Number(order.totalAmount || 0) - Number(order.discountAmount || 0) + Number(order.shippingFee || 0) + Number(order.codHandlingFee || 0)
+                          )}
+                        </div>
+                        {Number(order.discountAmount) > 0 && (
+                          <div className="text-[10px] text-emerald-700 font-medium mt-0.5">
+                            Saved {formatCurrency(order.discountAmount)}
+                          </div>
+                        )}
                       </td>
 
                       {/* Courier & Tracking */}
@@ -484,7 +514,7 @@ export default function AdminOrdersPage() {
         <Modal
           isOpen={!!receiptModalOrder}
           onClose={() => setReceiptModalOrder(null)}
-          title={`Audit Manual UPI Payment: #${receiptModalOrder?.id?.slice(0, 8).toUpperCase()}`}
+          title={`Audit Manual UPI Payment: ${receiptModalOrder?.orderNumber || `#${receiptModalOrder?.id?.slice(0, 8).toUpperCase()}`}`}
           size="md"
         >
           <div className="space-y-4 text-xs">
@@ -505,7 +535,7 @@ export default function AdminOrdersPage() {
                   <strong className="text-amber-950 font-mono">{receiptModalOrder?.shippingAddress?.phoneNumber || receiptModalOrder?.userPhone || "N/A"}</strong>
                 </div>
                 <div>
-                  <span className="text-amber-700/80 block">Payable Amount:</span>
+                  <span className="text-amber-700/80 block">Total Amount:</span>
                   <strong className="text-amber-950 font-bold text-xs">{formatCurrency(receiptModalOrder?.totalAmount)}</strong>
                 </div>
                 <div>
@@ -576,7 +606,7 @@ export default function AdminOrdersPage() {
         <Modal
           isOpen={!!shippingModalOrder}
           onClose={() => setShippingModalOrder(null)}
-          title={`Update Order: #${shippingModalOrder?.id?.slice(0, 8).toUpperCase()}`}
+          title={`Update Order: ${shippingModalOrder?.orderNumber || `#${shippingModalOrder?.id?.slice(0, 8).toUpperCase()}`}`}
           size="md"
         >
           <form onSubmit={handleShippingSubmit(onShippingSubmit)} className="space-y-4 text-xs">

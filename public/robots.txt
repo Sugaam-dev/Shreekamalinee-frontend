@@ -1,4 +1,64 @@
+# ==============================================================================
+# Shreekamalinee (shreekamalinee.com) - Robots Exclusion Protocol
+# ==============================================================================
+
+# 1. Default Rules for All Search Engine Crawlers (Googlebot, Bingbot, etc.)
 User-agent: *
 Allow: /
+Allow: /shop
+Allow: /product/
+Allow: /about
+Allow: /contact
+Allow: /privacy-policy
+Allow: /terms
+Allow: /shipping-returns
+Allow: /faq
 
+# Disallow Private & User-Specific Pages
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /payment/
+Disallow: /verify-otp
+Disallow: /reset-password
+Disallow: /api/
+
+# 2. AI & LLM Search Engine Crawlers (ChatGPT Search, Perplexity, Claude, Gemini)
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /api/
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /api/
+
+# 3. Sitemaps & LLM Manifest
 Sitemap: https://shreekamalinee.com/sitemap.xml
+LLM: https://shreekamalinee.com/llms.txt

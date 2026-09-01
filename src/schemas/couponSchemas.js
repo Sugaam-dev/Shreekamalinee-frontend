@@ -13,6 +13,8 @@ export const couponSchema = z.object({
   }),
   discountValue: z.coerce.number().positive("Discount value must be greater than zero"),
   minPurchaseAmount: z.coerce.number().min(0, "Minimum purchase amount cannot be negative").default(0),
+  minOrderAmount: z.coerce.number().min(0).optional(),
+  maxDiscountAmount: z.coerce.number().min(0, "Maximum discount cap cannot be negative").optional().nullable(),
   expiryDate: z
     .string()
     .min(1, "Expiry date is required")

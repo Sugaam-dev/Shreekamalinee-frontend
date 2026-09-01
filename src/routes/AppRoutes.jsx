@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import LoadingSpinner from "../components/ui/LoadingSpinner.jsx";
 import AdminRoute from "./AdminRoute.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
+import RouteErrorBoundary from "./RouteErrorBoundary.jsx";
 
 // Storefront Pages
 const HomePage = lazy(() => import("../pages/home/HomePage.jsx"));
@@ -44,6 +45,7 @@ const AdminProductsPage = lazy(() => import("../pages/admin/AdminProductsPage.js
 const AdminProductFormPage = lazy(() => import("../pages/admin/AdminProductFormPage.jsx"));
 const AdminInventoryPage = lazy(() => import("../pages/admin/AdminInventoryPage.jsx"));
 const AdminOrdersPage = lazy(() => import("../pages/admin/AdminOrdersPage.jsx"));
+const AdminCreateOrderPage = lazy(() => import("../pages/admin/AdminCreateOrderPage.jsx"));
 const AdminOrderDetailsPage = lazy(() => import("../pages/admin/AdminOrderDetailsPage.jsx"));
 const AdminCouponsPage = lazy(() => import("../pages/admin/AdminCouponsPage.jsx"));
 const AdminReviewsPage = lazy(() => import("../pages/admin/AdminReviewsPage.jsx"));
@@ -55,14 +57,15 @@ export default function AppRoutes() {
   const navigate = useNavigate();
 
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-cream">
-          <LoadingSpinner />
-        </div>
-      }
-    >
-      <Routes>
+    <RouteErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-cream">
+            <LoadingSpinner />
+          </div>
+        }
+      >
+        <Routes>
         {/* Public Storefront Catalog */}
         <Route path="/" element={<HomePage />} />
         <Route path="/shop" element={<ShopPage />} />
@@ -233,6 +236,22 @@ export default function AppRoutes() {
           }
         />
         <Route
+          path="/admin/orders/new"
+          element={
+            <AdminRoute>
+              <AdminCreateOrderPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/orders/manual"
+          element={
+            <AdminRoute>
+              <AdminCreateOrderPage />
+            </AdminRoute>
+          }
+        />
+        <Route
           path="/admin/orders/:id"
           element={
             <AdminRoute>
@@ -308,6 +327,7 @@ export default function AppRoutes() {
         {/* 404 Not Found */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-    </Suspense>
+      </Suspense>
+    </RouteErrorBoundary>
   );
 }

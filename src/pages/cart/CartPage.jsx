@@ -15,7 +15,6 @@ import {
 import { useCart } from "../../context/CartContext.jsx";
 import { useAvailableCouponsQuery } from "../../queries/useCouponQueries.js";
 import { formatCurrency } from "../../utils/formatters.js";
-import { FREE_SHIPPING_THRESHOLD } from "../../utils/constants.js";
 import Breadcrumb from "../../components/common/Breadcrumb.jsx";
 import Button from "../../components/common/Button.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
@@ -35,7 +34,6 @@ export default function CartPage() {
     removeItem,
     clearCart,
     subtotal,
-    totalItemsCount,
     appliedCoupon,
     discountAmount,
     freeShippingThreshold = 1499,
@@ -55,11 +53,15 @@ export default function CartPage() {
 
   const validCoupons = useMemo(() => {
     if (!Array.isArray(availableCoupons)) return [];
-    const now = new Date();
-    return availableCoupons.filter((c) => {
-      if (c.active === false) return false;
-      if (c.expiryDate && new Date(c.expiryDate) < now) return false;
-      return true;
+    return [...availableCoupons].sort((a, b) => {
+      const isAInactive = Boolean(a.isUsedByUser || a.isExpired || a.active === false);
+      const isBInactive = Boolean(b.isUsedByUser || b.isExpired || b.active === false);
+      if (isAInactive !== isBInactive) {
+        return isAInactive ? 1 : -1;
+      }
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
     });
   }, [availableCoupons]);
 
@@ -334,33 +336,84 @@ Could you please confirm the handloom fabric availability and delivery assistanc
                         c.discountType === "PERCENTAGE"
                           ? `${c.discountValue}% OFF`
                           : `₹${c.discountValue} FLAT OFF`;
-                      const minSpend = c.minPurchaseAmount > 0 ? ` on orders above ₹${c.minPurchaseAmount}` : "";
+                      const minSpendVal = Number(c.minOrderAmount || c.minPurchaseAmount || 0);
+                      const maxCapVal = Number(c.maxDiscountAmount || 0);
+                      const isExpired = Boolean(c.isExpired || (c.expiryDate && new Date(c.expiryDate) < new Date()) || c.active === false);
+                      const isUsed = Boolean(c.isUsedByUser);
+                      const isInactive = isExpired || isUsed;
+                      const isBelowMinSpend = !isInactive && minSpendVal > 0 && subtotal < minSpendVal;
 
                       return (
                         <div
                           key={c.id || c.code}
-                          className="p-2 bg-cream-2/40 border border-dashed border-[#D6A23F]/60 rounded-xs flex items-center justify-between gap-2"
+                          className={`p-2.5 border border-dashed rounded-xs flex items-center justify-between gap-2 text-xs transition-colors ${
+                            isInactive
+                              ? "bg-gray-100/80 border-gray-300 opacity-60"
+                              : isBelowMinSpend
+                              ? "bg-amber-50/50 border-amber-300/80"
+                              : "bg-cream-2/40 border-[#D6A23F]/60"
+                          }`}
                         >
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-mono font-bold text-[11px] text-rust bg-rust/5 px-1.5 py-0.5 rounded-xs border border-rust/20">
                                 {c.code}
                               </span>
+                              {isUsed ? (
+                                <span className="text-[9px] font-bold uppercase bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-xs">
+                                  Already Used
+                                </span>
+                              ) : isExpired ? (
+                                <span className="text-[9px] font-bold uppercase bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-xs">
+                                  Expired
+                                </span>
+                              ) : null}
                               <span className="text-[11px] font-semibold text-charcoal truncate">
                                 {discountDesc}
                               </span>
                             </div>
-                            {minSpend && (
-                              <p className="text-[10px] text-charcoal/60 truncate">{minSpend}</p>
-                            )}
+                            <div className="text-[10px] text-charcoal/70 mt-0.5 space-y-0.5">
+                              {minSpendVal > 0 && (
+                                <p className={isBelowMinSpend ? "text-amber-800 font-semibold" : ""}>
+                                  Min spend: ₹{minSpendVal}
+                                  {isBelowMinSpend && (
+                                    <span className="ml-1 text-amber-700">
+                                      (add ₹{minSpendVal - subtotal} more to unlock)
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                              {maxCapVal > 0 && (
+                                <p className="text-charcoal/50">Max discount cap: ₹{maxCapVal}</p>
+                              )}
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => applyCouponCode(c.code)}
-                            className="px-2.5 py-1 text-[10.5px] font-bold text-rust hover:text-white hover:bg-rust border border-rust rounded-xs transition-colors cursor-pointer shrink-0"
-                          >
-                            Apply
-                          </button>
+                          {isUsed ? (
+                            <span className="px-2.5 py-1 text-[10px] font-bold text-gray-500 bg-gray-200 rounded-xs shrink-0 cursor-not-allowed">
+                              Used
+                            </span>
+                          ) : isExpired ? (
+                            <span className="px-2.5 py-1 text-[10px] font-bold text-rose-500 bg-rose-50 rounded-xs shrink-0 cursor-not-allowed">
+                              Expired
+                            </span>
+                          ) : isBelowMinSpend ? (
+                            <button
+                              type="button"
+                              onClick={() => showToast(`Please add ₹${minSpendVal - subtotal} more worth of items to unlock this coupon.`, "warning")}
+                              className="px-2.5 py-1 text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-300 rounded-xs hover:bg-amber-200 transition-colors cursor-pointer shrink-0"
+                              title={`Min spend ₹${minSpendVal} required`}
+                            >
+                              Min ₹{minSpendVal}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => applyCouponCode(c.code, subtotal)}
+                              className="px-2.5 py-1 text-[10.5px] font-bold text-rust hover:text-white hover:bg-rust border border-rust rounded-xs transition-colors cursor-pointer shrink-0"
+                            >
+                              Apply
+                            </button>
+                          )}
                         </div>
                       );
                     })}

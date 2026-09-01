@@ -49,7 +49,7 @@ export default function ProductCard({ product }) {
           <Heart size={15} className={isWished ? "fill-[#800020] text-[#800020] stroke-[2.2]" : "text-charcoal stroke-[1.8]"} />
         </button>
 
-        <Link to={`/details/${product.id}`} className="absolute inset-0 block">
+        <Link to={`/product/${product.id}`} className="absolute inset-0 block">
           <img
             src={primaryImage}
             alt={product.name}
@@ -69,7 +69,7 @@ export default function ProductCard({ product }) {
 
 
       <div className="flex flex-col gap-0.5">
-        <Link to={`/details/${product.id}`} className="hover:text-[#800020] transition-colors block">
+        <Link to={`/product/${product.id}`} className="hover:text-[#800020] transition-colors block">
           <div className="text-[14px] font-semibold text-gray-900 leading-tight line-clamp-1">
             {product.name}
           </div>
