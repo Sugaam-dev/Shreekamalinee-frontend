@@ -274,6 +274,7 @@ export default function ProductDetailsPage() {
     setDrawerOpen(false);
     navigate("/checkout", {
       state: {
+        from: location.pathname + location.search,
         directBuyItem: {
           productId: product.id,
           variantId: selectedVariant?.id,

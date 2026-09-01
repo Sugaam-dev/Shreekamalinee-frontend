@@ -117,6 +117,7 @@ export default function AdminSettingsPage() {
       isUpiPaymentActive: true,
       isRazorpayPaymentActive: true,
       isCodPaymentActive: true,
+      isWhatsappOrderActive: true,
       isActive: true,
     },
   });
@@ -163,6 +164,7 @@ export default function AdminSettingsPage() {
         isUpiPaymentActive: storeSettings.isUpiPaymentActive ?? true,
         isRazorpayPaymentActive: storeSettings.isRazorpayPaymentActive ?? true,
         isCodPaymentActive: storeSettings.isCodPaymentActive ?? true,
+        isWhatsappOrderActive: storeSettings.isWhatsappOrderActive ?? true,
         isActive: storeSettings.isActive ?? true,
       });
     }
@@ -744,6 +746,18 @@ export default function AdminSettingsPage() {
                 <input
                   type="checkbox"
                   {...regBank("isCodPaymentActive")}
+                  className="accent-[#800020] w-4 h-4 cursor-pointer"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-3 border border-gray-200 rounded-xs bg-gray-50 cursor-pointer hover:border-gray-300">
+                <div className="space-y-0.5 pr-2">
+                  <span className="font-bold text-gray-900 block text-xs">WhatsApp Booking</span>
+                  <span className="text-[10px] text-gray-500">Order via WhatsApp Concierge</span>
+                </div>
+                <input
+                  type="checkbox"
+                  {...regBank("isWhatsappOrderActive")}
                   className="accent-[#800020] w-4 h-4 cursor-pointer"
                 />
               </label>

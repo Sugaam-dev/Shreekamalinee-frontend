@@ -268,11 +268,7 @@ export default function AdminLayout({ children, title, subtitle, actions }) {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Live API Status Pill */}
-            <div className="hidden sm:flex items-center gap-2 text-xs bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-full border border-emerald-200 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Spring Boot API Live</span>
-            </div>
+         
 
             {/* Actions button passed from child pages */}
             {actions}

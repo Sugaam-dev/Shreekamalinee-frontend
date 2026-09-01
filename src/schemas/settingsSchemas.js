@@ -78,6 +78,7 @@ export const bankDetailsSchema = z.object({
   isUpiPaymentActive: z.boolean().default(true),
   isRazorpayPaymentActive: z.boolean().default(true),
   isCodPaymentActive: z.boolean().default(true),
+  isWhatsappOrderActive: z.boolean().default(true),
   isActive: z.boolean().default(true),
 });
 

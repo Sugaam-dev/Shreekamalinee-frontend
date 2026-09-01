@@ -356,6 +356,16 @@ Kindly verify receipt and dispatch schedule. Thank you!`;
           ]}
         />
 
+        {/* Back Link */}
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 text-xs text-charcoal/60 hover:text-rust font-semibold transition-colors cursor-pointer mb-3 mt-1"
+        >
+          <ArrowLeft size={14} />
+          <span>Back to Checkout</span>
+        </button>
+
         {/* Page Header */}
         <div className="pb-4 mb-6 sm:mb-8 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -730,23 +740,9 @@ Kindly verify receipt and dispatch schedule. Thank you!`;
                   )}
                 </button>
 
-                <div className="relative flex items-center justify-center py-0.5">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-line/60" />
-                  </div>
-                  <span className="relative px-3 bg-white text-[10px] text-charcoal/40 uppercase font-bold tracking-wider">
-                    or
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCODOrder}
-                  className="w-full py-3 bg-gradient-to-r from-[#20ba5a] to-[#25D366] hover:from-[#1da750] hover:to-[#22c35e] text-white text-xs tracking-wider uppercase font-bold rounded-xs transition-all shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center gap-2 border border-white/20"
-                >
-                  <MessageCircle size={15} className="text-white fill-white" />
-                  <span>Verify via WhatsApp Concierge (1-Click)</span>
-                </button>
+                <p className="text-[11px] text-charcoal/60 text-center leading-relaxed">
+                  Upon submission, our accounts team will verify your UTR reference and confirm your order dispatch.
+                </p>
               </div>
             </form>
           </div>

@@ -48,6 +48,7 @@ export default function CheckoutPage() {
   const isUpiPaymentActive = storeSettings?.isUpiPaymentActive ?? true;
   const isRazorpayPaymentActive = storeSettings?.isRazorpayPaymentActive ?? true;
   const isCodPaymentActive = storeSettings?.isCodPaymentActive ?? true;
+  const isWhatsappOrderActive = storeSettings?.isWhatsappOrderActive ?? true;
 
   const minDeliveryDays = storeSettings?.estimatedDeliveryDaysMin ?? 3;
   const maxDeliveryDays = storeSettings?.estimatedDeliveryDaysMax ?? 5;
@@ -141,8 +142,9 @@ export default function CheckoutPage() {
     if (isRazorpayPaymentActive) return "RAZORPAY";
     if (isUpiPaymentActive) return "UPI_DIRECT";
     if (isCodPaymentActive) return "COD";
+    if (isWhatsappOrderActive) return "WHATSAPP";
     return "RAZORPAY";
-  }, [isRazorpayPaymentActive, isUpiPaymentActive, isCodPaymentActive]);
+  }, [isRazorpayPaymentActive, isUpiPaymentActive, isCodPaymentActive, isWhatsappOrderActive]);
 
   const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -182,14 +184,21 @@ export default function CheckoutPage() {
     if (paymentMethod === "RAZORPAY" && !isRazorpayPaymentActive) {
       if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
       else if (isCodPaymentActive) setPaymentMethod("COD");
+      else if (isWhatsappOrderActive) setPaymentMethod("WHATSAPP");
     } else if (paymentMethod === "UPI_DIRECT" && !isUpiPaymentActive) {
       if (isRazorpayPaymentActive) setPaymentMethod("RAZORPAY");
       else if (isCodPaymentActive) setPaymentMethod("COD");
+      else if (isWhatsappOrderActive) setPaymentMethod("WHATSAPP");
     } else if (paymentMethod === "COD" && !isCodPaymentActive) {
       if (isRazorpayPaymentActive) setPaymentMethod("RAZORPAY");
       else if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
+      else if (isWhatsappOrderActive) setPaymentMethod("WHATSAPP");
+    } else if (paymentMethod === "WHATSAPP" && !isWhatsappOrderActive) {
+      if (isRazorpayPaymentActive) setPaymentMethod("RAZORPAY");
+      else if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
+      else if (isCodPaymentActive) setPaymentMethod("COD");
     }
-  }, [isRazorpayPaymentActive, isUpiPaymentActive, isCodPaymentActive, paymentMethod]);
+  }, [isRazorpayPaymentActive, isUpiPaymentActive, isCodPaymentActive, isWhatsappOrderActive, paymentMethod]);
 
   const userFullName = user
     ? (user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.name || "")
@@ -294,7 +303,64 @@ export default function CheckoutPage() {
   };
 
 
+  const handleWhatsAppOrderSubmit = () => {
+    if (!selectedAddress) {
+      showToast("Please select or add a delivery address to complete your order inquiry.", "warning");
+      return;
+    }
+
+    if (checkoutItems.length === 0) {
+      showToast("Your checkout bag is empty.", "warning");
+      return;
+    }
+
+    const rawStorePhone = storeSettings?.whatsappNumber || storeSettings?.contactPhone || "918329683648";
+    const cleanStorePhone = rawStorePhone.replace(/\D/g, "");
+
+    const addressText = selectedAddress
+      ? `${selectedAddress.fullName || selectedAddress.name || userFullName || "Patron"}\n📍 ${selectedAddress.addressLine1 || ""}${selectedAddress.addressLine2 ? ", " + selectedAddress.addressLine2 : ""}, ${selectedAddress.city || ""}, ${selectedAddress.state || ""} - ${selectedAddress.postalCode || selectedAddress.pincode || ""}\n📞 Phone: ${selectedAddress.phoneNumber || selectedAddress.phone || userPhone || ""}`
+      : "Address on file";
+
+    const itemsList = checkoutItems
+      .map(
+        (item, idx) =>
+          `• ${idx + 1}. *${item.name || item.title || "Handloom Saree"}*\n   Qty: ${item.qty || item.quantity || 1} × ${formatCurrency(item.price || 0)}${item.selectedSize && item.selectedSize !== "Standard" ? ` | Size: ${item.selectedSize}` : ""}${item.color ? ` | Color: ${item.color}` : ""}`
+      )
+      .join("\n");
+
+    const discountText = checkoutDiscount > 0
+      ? `\n• *Coupon Discount (${appliedCoupon?.code || "PROMO"}):* -${formatCurrency(checkoutDiscount)}`
+      : "";
+
+    const shippingDisplay = checkoutShipping === 0 ? "FREE (Insured)" : formatCurrency(checkoutShipping);
+
+    const message = `👑 *NEW ORDER BOOKING — SHREEKAMALINEE*
+----------------------------------------
+🛍️ *Order Items (${checkoutItems.length}):*
+${itemsList}
+
+📊 *Price Calculation Breakdown:*
+• *Subtotal:* ${formatCurrency(checkoutSubtotal)}${discountText}
+• *Insured Shipping:* ${shippingDisplay}
+----------------------------------------
+💎 *Net Total Payable:* ${formatCurrency(checkoutGrandTotal)}
+----------------------------------------
+📍 *Customer & Delivery Details:*
+${addressText}
+
+💬 *Customer Note:* I would like to confirm my order booking and complete payment via WhatsApp Concierge.`;
+
+    const waUrl = `https://wa.me/${cleanStorePhone}?text=${encodeURIComponent(message)}`;
+    showToast("Opening WhatsApp with your complete order breakdown...", "info");
+    window.open(waUrl, "_blank");
+  };
+
   const handlePlaceOrder = async () => {
+    if (paymentMethod === "WHATSAPP") {
+      handleWhatsAppOrderSubmit();
+      return;
+    }
+
     if (!selectedAddress) {
       showToast("Please select or add a delivery address.", "warning");
       return;
@@ -447,18 +513,20 @@ export default function CheckoutPage() {
         <button
           type="button"
           onClick={() => {
-            if (directBuyItem?.productId) {
+            if (location.state?.from) {
+              navigate(location.state.from);
+            } else if (directBuyItem?.productId) {
               navigate(`/details/${directBuyItem.productId}`);
             } else if (window.history.length > 1) {
               navigate(-1);
             } else {
-              navigate("/cart");
+              navigate("/shop");
             }
           }}
           className="inline-flex items-center gap-1.5 text-xs text-charcoal/60 hover:text-rust font-semibold transition-colors cursor-pointer mb-3"
         >
-          <ArrowLeft size={13} />
-          <span>{directBuyItem ? "Back to Product Details" : "Back to Shopping Bag"}</span>
+          <ArrowLeft size={14} />
+          <span>Back to Shopping</span>
         </button>
 
         {/* Header Title */}
@@ -630,7 +698,41 @@ export default function CheckoutPage() {
                   </label>
                 )}
 
-                {!isRazorpayPaymentActive && !isUpiPaymentActive && !isCodPaymentActive && (
+                {/* WhatsApp Order Booking Option */}
+                {isWhatsappOrderActive && (
+                  <label
+                    className={`flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 border rounded-sm cursor-pointer transition-all ${
+                      paymentMethod === "WHATSAPP"
+                        ? "border-[#25D366] bg-[#25D366]/5 ring-1 ring-[#25D366]"
+                        : "border-line bg-white hover:border-[#25D366]/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="WHATSAPP"
+                      checked={paymentMethod === "WHATSAPP"}
+                      onChange={() => setPaymentMethod("WHATSAPP")}
+                      className="accent-[#25D366] mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-xs sm:text-sm font-bold text-charcoal flex items-center gap-1.5">
+                          <span className="text-[#25D366] text-base leading-none">💬</span>
+                          <span>WhatsApp Assisted Booking & Payment</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-[#20ba5a] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                          Personal Concierge
+                        </span>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-charcoal/60 mt-1 leading-relaxed">
+                        Connect directly with our atelier on WhatsApp to confirm handloom details, customization, and pay securely.
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {!isRazorpayPaymentActive && !isUpiPaymentActive && !isCodPaymentActive && !isWhatsappOrderActive && (
                   <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xs">
                     Please contact support. Online checkouts are undergoing maintenance.
                   </div>
@@ -871,32 +973,43 @@ export default function CheckoutPage() {
             </div>
 
             {/* Action Place Order */}
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full"
-              isLoading={isProcessing}
-              onClick={() => {
-                if (paymentMethod === "COD") {
-                  if (!selectedAddress) {
-                    showToast("Please select or add a delivery address.", "warning");
+            {paymentMethod === "WHATSAPP" ? (
+              <button
+                type="button"
+                onClick={handlePlaceOrder}
+                className="w-full py-3.5 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs tracking-wider uppercase font-bold rounded-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span className="text-base leading-none">💬</span>
+                <span>Confirm Order via WhatsApp ({formatCurrency(checkoutGrandTotal)})</span>
+              </button>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                isLoading={isProcessing}
+                onClick={() => {
+                  if (paymentMethod === "COD") {
+                    if (!selectedAddress) {
+                      showToast("Please select or add a delivery address.", "warning");
+                      return;
+                    }
+                    if (checkoutItems.length === 0) {
+                      showToast("Your checkout bag is empty.", "warning");
+                      return;
+                    }
+                    setIsCodModalOpen(true);
                     return;
                   }
-                  if (checkoutItems.length === 0) {
-                    showToast("Your checkout bag is empty.", "warning");
-                    return;
-                  }
-                  setIsCodModalOpen(true);
-                  return;
-                }
-                handlePlaceOrder();
-              }}
-              icon={CheckCircle2}
-            >
-              {paymentMethod === "UPI_DIRECT"
-                ? "Proceed to UPI Verification"
-                : `Authorize Payment of ${formatCurrency(checkoutGrandTotal)}`}
-            </Button>
+                  handlePlaceOrder();
+                }}
+                icon={CheckCircle2}
+              >
+                {paymentMethod === "UPI_DIRECT"
+                  ? `Proceed to UPI / QR Verification (${formatCurrency(checkoutGrandTotal)})`
+                  : `Authorize Payment of ${formatCurrency(checkoutGrandTotal)}`}
+              </Button>
+            )}
 
 
             <div className="pt-3 border-t border-line/60 flex items-center justify-center gap-2 text-[11px] text-charcoal/50">
