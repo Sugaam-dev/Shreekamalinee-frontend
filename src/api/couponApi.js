@@ -41,9 +41,16 @@ export const couponApi = {
     return [];
   },
 
-  // 5. Validate coupon code (Checkout)
-  validateCoupon: async (code, amount) => {
-    const response = await apiClient.get(`/api/v1/orders/coupons/validate?code=${encodeURIComponent(code)}&subtotal=${amount || 0}`);
+  // 5. Validate coupon code (Checkout & Admin Manual Order)
+  validateCoupon: async (code, amount, userEmail = "") => {
+    const params = new URLSearchParams();
+    if (code) params.append("code", code.trim());
+    if (amount != null) params.append("subtotal", amount);
+    if (userEmail && userEmail.trim()) {
+      params.append("userEmail", userEmail.trim());
+      params.append("email", userEmail.trim());
+    }
+    const response = await apiClient.get(`/api/v1/orders/coupons/validate?${params.toString()}`);
     return response.data;
   },
 };

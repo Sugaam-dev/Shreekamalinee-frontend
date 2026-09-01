@@ -31,9 +31,14 @@ export default function AdminDashboardPage() {
 
   const orderList = Array.isArray(orders) ? orders : Array.isArray(orders?.content) ? orders.content : [];
   const recentOrders = orderList.slice(0, 8);
-  const pendingManualCount = orderList.filter(
-    (o) => o.paymentMethod === "MANUAL" && o.paymentStatus === "PENDING"
-  ).length;
+  // Use server count if available; fall back to local count using new PAYMENT_PROOF_SUBMITTED status
+  const pendingManualCount =
+    stats?.pendingPaymentVerification ??
+    orderList.filter(
+      (o) =>
+        o.status === "PAYMENT_PROOF_SUBMITTED" ||
+        (o.paymentMethod === "MANUAL" && o.paymentStatus === "PENDING")
+    ).length;
 
   const totalGrossRevenue = useMemo(() => {
     if (stats?.totalRevenue && Number(stats.totalRevenue) > 0) {
@@ -54,8 +59,8 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Revenue */}
           <div
-            onClick={() => navigate("/admin/orders?paymentStatus=PAID")}
-            className="bg-white p-5 rounded-xs border border-gray-200 shadow-xs hover:border-[#800020] hover:shadow-sm cursor-pointer transition-all group"
+            onClick={() => navigate("/admin/revenue")}
+            className="bg-white p-5 rounded-xs border border-gray-200 shadow-xs hover:border-[#800020] hover:shadow-md cursor-pointer transition-all group relative overflow-hidden"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase font-bold tracking-wider text-gray-500 group-hover:text-[#800020] transition-colors">
@@ -69,8 +74,8 @@ export default function AdminDashboardPage() {
               {isStatsLoading && isOrdersLoading ? "₹..." : formatCurrency(totalGrossRevenue)}
             </div>
             <div className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center justify-between">
-              <span>Verified paid orders</span>
-              <ArrowUpRight size={13} className="text-gray-400 group-hover:text-[#800020] transition-colors" />
+              <span>View financial charts & analytics</span>
+              <ArrowUpRight size={13} className="text-gray-400 group-hover:text-[#800020] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
             </div>
           </div>
 
@@ -98,7 +103,7 @@ export default function AdminDashboardPage() {
 
           {/* Pending UPI Audits */}
           <div
-            onClick={() => navigate("/admin/orders?status=MANUAL_PENDING")}
+            onClick={() => navigate("/admin/orders?status=PAYMENT_PROOF_SUBMITTED")}
             className="bg-white p-5 rounded-xs border border-amber-200 bg-amber-50/40 shadow-xs hover:border-amber-400 hover:shadow-sm cursor-pointer transition-all group"
           >
             <div className="flex items-center justify-between">
@@ -158,7 +163,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <Link
-              to="/admin/orders?status=MANUAL_PENDING"
+              to="/admin/orders?status=PAYMENT_PROOF_SUBMITTED"
               className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xs shrink-0 transition-colors shadow-xs"
             >
               <span>Audit Payments</span>

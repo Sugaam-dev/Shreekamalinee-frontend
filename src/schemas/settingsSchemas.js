@@ -5,6 +5,7 @@ export const shippingSettingsSchema = z.object({
   freeShippingThreshold: z.coerce.number().min(0, "Threshold must be >= 0").default(1499),
   standardShippingFee: z.coerce.number().min(0, "Shipping fee must be >= 0").default(99),
   codHandlingFee: z.coerce.number().min(0, "COD fee must be >= 0").default(99),
+  freeCodThreshold: z.coerce.number().min(0, "Free COD threshold must be >= 0").default(2999),
   isFreeShippingPromoActive: z.boolean().default(false),
   estimatedDeliveryDaysMin: z.coerce.number().min(1, "Minimum days must be at least 1").default(3),
   estimatedDeliveryDaysMax: z.coerce.number().min(1, "Maximum days must be at least 1").default(5),

@@ -129,6 +129,8 @@ export default function CheckoutPage() {
   }, [appliedCoupon, checkoutSubtotal, discountAmount]);
 
   const codHandlingFee = storeSettings?.codHandlingFee != null ? Number(storeSettings.codHandlingFee) : 99;
+  const freeCodThreshold = storeSettings?.freeCodThreshold != null ? Number(storeSettings.freeCodThreshold) : 2999;
+  const isCodFree = checkoutSubtotal >= freeCodThreshold;
 
   const checkoutShipping = useMemo(() => {
     if (isFreeShippingPromo || checkoutSubtotal >= freeShippingThreshold || checkoutSubtotal === 0) {
@@ -153,7 +155,7 @@ export default function CheckoutPage() {
   const [isCodModalOpen, setIsCodModalOpen] = useState(false);
   const [isCodAgreed, setIsCodAgreed] = useState(false);
 
-  const effectiveCodFee = paymentMethod === "COD" ? codHandlingFee : 0;
+  const effectiveCodFee = paymentMethod === "COD" ? (isCodFree ? 0 : codHandlingFee) : 0;
   const checkoutGrandTotal = Math.max(0, checkoutSubtotal - checkoutDiscount + checkoutShipping + effectiveCodFee);
 
   const { data: dbAddresses = [] } = useAddressesQuery(isAuthenticated);
@@ -317,9 +319,12 @@ export default function CheckoutPage() {
     const rawStorePhone = storeSettings?.whatsappNumber || storeSettings?.contactPhone || "918329683648";
     const cleanStorePhone = rawStorePhone.replace(/\D/g, "");
 
+    const customerEmail = user?.email || selectedAddress?.email || "";
+    const emailLine = customerEmail ? `\n📧 Email: ${customerEmail}` : "";
+
     const addressText = selectedAddress
-      ? `${selectedAddress.fullName || selectedAddress.name || userFullName || "Patron"}\n📍 ${selectedAddress.addressLine1 || ""}${selectedAddress.addressLine2 ? ", " + selectedAddress.addressLine2 : ""}, ${selectedAddress.city || ""}, ${selectedAddress.state || ""} - ${selectedAddress.postalCode || selectedAddress.pincode || ""}\n📞 Phone: ${selectedAddress.phoneNumber || selectedAddress.phone || userPhone || ""}`
-      : "Address on file";
+      ? `${selectedAddress.fullName || selectedAddress.name || userFullName || "Patron"}\n📍 ${selectedAddress.addressLine1 || ""}${selectedAddress.addressLine2 ? ", " + selectedAddress.addressLine2 : ""}, ${selectedAddress.city || ""}, ${selectedAddress.state || ""} - ${selectedAddress.postalCode || selectedAddress.pincode || ""}\n📞 Phone: ${selectedAddress.phoneNumber || selectedAddress.phone || userPhone || ""}${emailLine}`
+      : `Address on file${emailLine}`;
 
     const itemsList = checkoutItems
       .map(
@@ -687,12 +692,18 @@ ${addressText}
                           <Truck size={15} className="text-rust shrink-0" />
                           <span>Cash on Delivery (COD)</span>
                         </span>
-                        <span className="text-[10px] text-charcoal/60 bg-cream-2 px-2 py-0.5 rounded-full font-semibold border border-line shrink-0">
-                          +{formatCurrency(codHandlingFee)} Handling
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border shrink-0 ${
+                          isCodFree
+                            ? "text-emerald-800 bg-emerald-50 border-emerald-300 font-bold"
+                            : "text-charcoal/60 bg-cream-2 border-line"
+                        }`}>
+                          {isCodFree ? "FREE COD" : `+${formatCurrency(codHandlingFee)} Handling`}
                         </span>
                       </div>
                       <p className="text-[11px] sm:text-xs text-charcoal/60 mt-1 leading-relaxed">
-                        Pay cash at doorstep upon verified courier delivery (+{formatCurrency(codHandlingFee)} handling fee applied).
+                        {isCodFree
+                          ? `Pay cash at doorstep upon verified courier delivery (FREE COD unlocked on orders above ${formatCurrency(freeCodThreshold)}).`
+                          : `Pay cash at doorstep upon delivery (+${formatCurrency(codHandlingFee)} handling fee applied. FREE on orders above ${formatCurrency(freeCodThreshold)}).`}
                       </p>
                     </div>
                   </label>
@@ -955,7 +966,9 @@ ${addressText}
               {paymentMethod === "COD" && (
                 <div className="flex justify-between text-charcoal/80">
                   <span>COD Cash Handling Fee</span>
-                  <span className="font-semibold text-charcoal">+{formatCurrency(codHandlingFee)}</span>
+                  <span className={effectiveCodFee === 0 ? "text-emerald-700 font-semibold" : "font-semibold text-charcoal"}>
+                    {effectiveCodFee === 0 ? "FREE" : `+${formatCurrency(effectiveCodFee)}`}
+                  </span>
                 </div>
               )}
 

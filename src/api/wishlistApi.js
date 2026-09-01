@@ -24,6 +24,19 @@ export const wishlistApi = {
     const response = await apiClient.get(`/api/v1/wishlist/${productId}/status`);
     return response.data;
   },
+
+  // 5. Move product from wishlist to cart
+  moveToCart: async (productId, variantId = null, quantity = 1) => {
+    const params = {};
+    if (quantity) params.quantity = quantity;
+    if (variantId && typeof variantId === "string" && variantId !== "null" && variantId.trim().length > 0) {
+      params.variantId = variantId;
+    }
+    const response = await apiClient.post(`/api/v1/wishlist/${productId}/move-to-cart`, null, {
+      params,
+    });
+    return response.data;
+  },
 };
 
 export default wishlistApi;

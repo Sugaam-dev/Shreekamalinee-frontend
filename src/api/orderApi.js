@@ -24,9 +24,15 @@ export const orderApi = {
     return response.data;
   },
 
-  // 4. Update Order Status & Courier Tracking (Admin)
+  // 4. Update Order Lifecycle Status only (CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED)
   updateOrderStatusAdmin: async (orderId, updateData) => {
     const response = await apiClient.put(`/api/v1/admin/orders/${orderId}/status`, updateData);
+    return response.data;
+  },
+
+  // 4b. Update Courier / Shipping / Tracking Details only — separate from status
+  updateShippingDetailsAdmin: async (orderId, shippingData) => {
+    const response = await apiClient.put(`/api/v1/admin/orders/${orderId}/shipping`, shippingData);
     return response.data;
   },
 

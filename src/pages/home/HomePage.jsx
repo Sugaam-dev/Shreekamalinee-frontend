@@ -105,6 +105,12 @@ export default function HomePage() {
             isSoldOut: p.inStock === false,
           })),
         };
+      }).sort((a, b) => {
+        const aIsSaree = (a.subcat || "").toLowerCase().includes("saree");
+        const bIsSaree = (b.subcat || "").toLowerCase().includes("saree");
+        if (aIsSaree && !bIsSaree) return -1;
+        if (!aIsSaree && bIsSaree) return 1;
+        return 0;
       });
 
       return {
@@ -112,6 +118,12 @@ export default function HomePage() {
         name: cat.name,
         subcatProducts,
       };
+    }).sort((a, b) => {
+      const aIsSaree = (a.name || "").toLowerCase().includes("saree");
+      const bIsSaree = (b.name || "").toLowerCase().includes("saree");
+      if (aIsSaree && !bIsSaree) return -1;
+      if (!aIsSaree && bIsSaree) return 1;
+      return 0;
     });
   }, [dbCategories, dbProducts]);
 
@@ -123,8 +135,8 @@ export default function HomePage() {
       <Categories />
 
       {/* Featured Collection grouped by subcategory */}
-      <section className="py-12 sm:py-16 md:py-24 bg-cream">
-        <div className="max-w-[1280px] 2xl:max-w-[1600px] 3xl:max-w-[2000px] 4k:max-w-[2400px] mx-auto px-4 sm:px-6 md:px-10 2xl:px-12">
+      <section className="pt-8 sm:pt-10 md:pt-12 pb-4 sm:pb-6 md:pb-8 bg-[#FAF7F2]/40">
+        <div className="max-w-[1440px] 2xl:max-w-[1800px] 3xl:max-w-[2200px] 4k:max-w-[2800px] mx-auto px-4 sm:px-6 md:px-10 2xl:px-16 w-full">
           <div className="flex justify-between items-end flex-wrap gap-5 mb-8 sm:mb-12">
             <div>
               <span className="block text-xs tracking-[0.2em] uppercase text-rust mb-2 font-semibold">
@@ -165,7 +177,7 @@ export default function HomePage() {
 
       {/* Testimonials Section (PMRG Divas Reviews) */}
       <section className="py-12 sm:py-16 md:py-24 bg-cream border-t border-line">
-        <div className="max-w-[1280px] 2xl:max-w-[1600px] 3xl:max-w-[2000px] 4k:max-w-[2400px] mx-auto px-4 sm:px-6 md:px-10 2xl:px-12">
+        <div className="max-w-[1400px] 2xl:max-w-[1750px] 3xl:max-w-[2100px] 4k:max-w-[2560px] mx-auto px-4 sm:px-6 md:px-10 2xl:px-12 w-full">
           <div className="text-center max-w-xl mx-auto mb-16">
             <span className="text-xs tracking-[0.22em] uppercase text-rust font-semibold block mb-3">
               #ShreekamalineeDivas Speaks

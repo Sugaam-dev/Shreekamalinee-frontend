@@ -52,6 +52,7 @@ const AdminReviewsPage = lazy(() => import("../pages/admin/AdminReviewsPage.jsx"
 const AdminCustomersPage = lazy(() => import("../pages/admin/AdminCustomersPage.jsx"));
 const AdminInquiriesPage = lazy(() => import("../pages/admin/AdminInquiriesPage.jsx"));
 const AdminSettingsPage = lazy(() => import("../pages/admin/AdminSettingsPage.jsx"));
+const AdminRevenueAnalyticsPage = lazy(() => import("../pages/admin/AdminRevenueAnalyticsPage.jsx"));
 
 export default function AppRoutes() {
   const navigate = useNavigate();
@@ -119,6 +120,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/profile" element={<Navigate to="/account/profile" replace />} />
+
         <Route
           path="/account/orders"
           element={
@@ -127,6 +130,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/orders" element={<Navigate to="/account/orders" replace />} />
+
         <Route
           path="/account/orders/:id"
           element={
@@ -135,6 +140,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/orders/:id" element={<Navigate to="/account/orders/:id" replace />} />
+
         <Route
           path="/account/addresses"
           element={
@@ -143,6 +150,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/addresses" element={<Navigate to="/account/addresses" replace />} />
+
         <Route
           path="/account/wishlist"
           element={
@@ -151,6 +160,7 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/wishlist" element={<Navigate to="/account/wishlist" replace />} />
 
         {/* Public Authentication */}
         <Route path="/login" element={<LoginPage />} />
@@ -184,6 +194,22 @@ export default function AppRoutes() {
           element={
             <AdminRoute>
               <AdminDashboardPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/revenue"
+          element={
+            <AdminRoute>
+              <AdminRevenueAnalyticsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/analytics"
+          element={
+            <AdminRoute>
+              <AdminRevenueAnalyticsPage />
             </AdminRoute>
           }
         />

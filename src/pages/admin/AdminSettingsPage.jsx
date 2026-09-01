@@ -58,6 +58,7 @@ export default function AdminSettingsPage() {
       freeShippingThreshold: 1499,
       standardShippingFee: 99,
       codHandlingFee: 99,
+      freeCodThreshold: 2999,
       isFreeShippingPromoActive: false,
       estimatedDeliveryDaysMin: 3,
       estimatedDeliveryDaysMax: 5,
@@ -129,6 +130,7 @@ export default function AdminSettingsPage() {
         freeShippingThreshold: storeSettings.freeShippingThreshold ?? 1499,
         standardShippingFee: storeSettings.standardShippingFee ?? 99,
         codHandlingFee: storeSettings.codHandlingFee ?? 99,
+        freeCodThreshold: storeSettings.freeCodThreshold ?? 2999,
         isFreeShippingPromoActive: storeSettings.isFreeShippingPromoActive ?? false,
         estimatedDeliveryDaysMin: storeSettings.estimatedDeliveryDaysMin ?? 3,
         estimatedDeliveryDaysMax: storeSettings.estimatedDeliveryDaysMax ?? 5,
@@ -279,7 +281,7 @@ export default function AdminSettingsPage() {
             </label>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs uppercase font-bold tracking-wider text-gray-800 mb-1">
                 Free Shipping Minimum Cart (₹) *
@@ -335,7 +337,26 @@ export default function AdminSettingsPage() {
                 }`}
               />
               <span className="text-[10px] text-gray-400 mt-1 block">
-                Added for Cash on Delivery orders.
+                Base fee added for Cash on Delivery.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase font-bold tracking-wider text-gray-800 mb-1">
+                Free COD Minimum Cart (₹) *
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                {...regShipping("freeCodThreshold")}
+                placeholder="2999"
+                className={`w-full px-3 py-2 text-xs border rounded-xs outline-none bg-white font-mono font-bold ${
+                  errorsShipping.freeCodThreshold ? "border-rose-500" : "border-gray-300 focus:border-[#800020]"
+                }`}
+              />
+              <span className="text-[10px] text-gray-400 mt-1 block">
+                Orders &ge; this amount get FREE COD (₹0 fee).
               </span>
             </div>
           </div>

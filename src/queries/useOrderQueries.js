@@ -44,7 +44,7 @@ export function useAdminDashboardStatsQuery() {
   });
 }
 
-// 4. Update Order Status & Courier Tracking Mutation
+// 4. Update Order Lifecycle Status Mutation (status changes only)
 export function useUpdateOrderStatusMutation() {
   const queryClient = useQueryClient();
 
@@ -59,6 +59,22 @@ export function useUpdateOrderStatusMutation() {
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.userDetail(orderId) });
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.all });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+// 4b. Update Courier / Shipping / Tracking Details Mutation (separate from status)
+export function useUpdateShippingDetailsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ orderId, shippingData }) =>
+      orderApi.updateShippingDetailsAdmin(orderId, shippingData),
+    onSuccess: (updatedOrder, { orderId }) => {
+      queryClient.setQueryData(ORDER_KEYS.adminDetail(orderId), updatedOrder);
+      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.adminList });
+      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.userList });
+      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.userDetail(orderId) });
     },
   });
 }

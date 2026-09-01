@@ -26,6 +26,20 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+// Request Interceptor: Attach Bearer token from localStorage if present
+apiClient.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("shreekamalinee_token");
+      if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Response Interceptor
 apiClient.interceptors.response.use(
   (response) => response,
@@ -55,7 +69,12 @@ apiClient.interceptors.response.use(
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
         })
-          .then(() => apiClient(originalRequest))
+          .then((newToken) => {
+            if (newToken && originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            }
+            return apiClient(originalRequest);
+          })
           .catch((err) => Promise.reject(err));
       }
 
@@ -63,16 +82,27 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await axios.post(
+        const refreshResponse = await axios.post(
           `${API_BASE_URL}/api/v1/auth/refresh-token`,
           {},
           { withCredentials: true }
         );
-        processQueue(null);
+
+        const newToken = refreshResponse.data?.token;
+        if (newToken && typeof window !== "undefined") {
+          localStorage.setItem("shreekamalinee_token", newToken);
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          }
+        }
+
+        processQueue(null, newToken);
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
         if (typeof window !== "undefined") {
+          localStorage.removeItem("shreekamalinee_token");
+          localStorage.removeItem("shreekamalinee_user_cache");
           window.dispatchEvent(new CustomEvent("auth:session-expired"));
         }
         return Promise.reject(refreshError);

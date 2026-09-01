@@ -1,9 +1,12 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_FEE } from "../utils/constants.js";
 import { useAuth } from "./AuthContext.jsx";
 import { useBankDetailsQuery } from "../queries/useSettingsQueries.js";
+import { WISHLIST_KEYS } from "../queries/useWishlistQueries.js";
 import cartApi from "../api/cartApi.js";
 import wishlistApi from "../api/wishlistApi.js";
+import productApi from "../api/productApi.js";
 import orderApi from "../api/orderApi.js";
 import couponApi from "../api/couponApi.js";
 
@@ -13,6 +16,7 @@ const CartContext = createContext(null);
 
 
 export function CartProvider({ children }) {
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
 
   const [cart, setCart] = useState(() => {
@@ -188,8 +192,20 @@ export function CartProvider({ children }) {
   }, []);
 
   const addToCart = useCallback(
-    async (product, qty = 1, options = {}) => {
+    async (product, qtyOrOptions = 1, maybeOptions = {}) => {
       if (!product) return;
+
+      let qty = 1;
+      let options = {};
+      if (typeof qtyOrOptions === "object" && qtyOrOptions !== null) {
+        options = qtyOrOptions;
+        qty = Number(options.qty || options.quantity) || 1;
+      } else {
+        qty = Number(qtyOrOptions) || 1;
+        options = maybeOptions || {};
+      }
+      qty = Math.max(1, Number(qty) || 1);
+
       const variantId = options?.variantId || options?.id || product?.variantId || product?.variants?.[0]?.id;
       const normalizedPrice = Number(product?.offerPrice ?? product?.originalPrice ?? product?.price ?? 0);
       const normalizedImage =
@@ -217,9 +233,10 @@ export function CartProvider({ children }) {
             const matchProduct = targetProductId && (i.productId === targetProductId || i.id === targetProductId);
             const matchSize = (i.selectedSize || "Standard") === (selectedSize || "Standard");
             if ((matchVariant || matchProduct) && matchSize) {
+              const currentQty = Number(i.qty) || 1;
               return {
                 ...i,
-                qty: i.qty + qty,
+                qty: currentQty + qty,
                 price: normalizedPrice,
                 image: normalizedImage,
                 name: normalizedName,
@@ -258,14 +275,11 @@ export function CartProvider({ children }) {
         setDrawerOpen(false);
       }
 
-      // Server sync for authenticated user if a valid UUID variantId is available
-      const isUUID = (str) =>
-        typeof str === "string" &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
-
-      if (isAuthenticated && variantId && isUUID(variantId)) {
+      // Server sync: always dispatch to backend
+      let finalVariantId = variantId || targetProductId;
+      if (finalVariantId) {
         try {
-          const serverResponse = await cartApi.addItem({ variantId, quantity: qty });
+          const serverResponse = await cartApi.addItem({ variantId: finalVariantId, quantity: qty });
           if (serverResponse && Array.isArray(serverResponse.items)) {
             const mappedItems = serverResponse.items.map((item) => ({
               id: item.id || item.variantId,
@@ -280,12 +294,12 @@ export function CartProvider({ children }) {
             }));
             setCart(mappedItems);
           }
-        } catch {
-          // Local fallback persists
+        } catch (err) {
+          // If unauthenticated or offline, local cart state persists seamlessly
         }
       }
     },
-    [isAuthenticated, showToast]
+    [showToast]
   );
 
   const changeQty = useCallback(
@@ -416,14 +430,17 @@ export function CartProvider({ children }) {
 
   const toggleWish = useCallback(
     async (id) => {
+      const strId = String(id);
       let isAdding = false;
       setWishlist((prev) => {
         const next = new Set(prev);
-        if (next.has(id)) {
+        if (next.has(strId) || next.has(id)) {
+          next.delete(strId);
           next.delete(id);
           showToast("Removed from wishlist", "info");
           isAdding = false;
         } else {
+          next.add(strId);
           next.add(id);
           showToast("Saved to your wishlist", "wishlist");
           isAdding = true;
@@ -431,19 +448,86 @@ export function CartProvider({ children }) {
         return next;
       });
 
-      if (isAuthenticated) {
-        try {
-          if (isAdding) {
-            await wishlistApi.addItem(id);
-          } else {
-            await wishlistApi.removeItem(id);
-          }
-        } catch {
-          // Local wishlist state preserved
+      // Optimistically update React Query cache immediately
+      queryClient.setQueryData(WISHLIST_KEYS.all, (prev) => {
+        if (!Array.isArray(prev)) return [];
+        if (isAdding) return prev;
+        return prev.filter((p) => p.id !== id && String(p.id) !== strId && p.productId !== id);
+      });
+
+      // Always dispatch to backend API
+      try {
+        if (isAdding) {
+          await wishlistApi.addItem(id);
+        } else {
+          await wishlistApi.removeItem(id);
         }
+        queryClient.invalidateQueries({ queryKey: WISHLIST_KEYS.all });
+      } catch {
+        // Local wishlist state preserved for guests
       }
     },
-    [isAuthenticated, showToast]
+    [showToast, queryClient]
+  );
+
+  const moveToBag = useCallback(
+    async (product, options = {}) => {
+      const pId = product?.id || product?.productId;
+      const strPId = String(pId);
+      const vId = options?.variantId || product?.variantId || product?.variants?.[0]?.id || null;
+      const qty = 1;
+
+      // 1. Immediately remove from local wishlist state
+      setWishlist((prev) => {
+        const next = new Set(prev);
+        if (pId) {
+          next.delete(pId);
+          next.delete(strPId);
+        }
+        return next;
+      });
+
+      // 2. Immediately remove from React Query cache so Wishlist UI instantly clears the item
+      queryClient.setQueryData(WISHLIST_KEYS.all, (prev) => {
+        if (!Array.isArray(prev)) return [];
+        return prev.filter((p) => p.id !== pId && String(p.id) !== strPId && p.productId !== pId);
+      });
+
+      // 3. Always call dedicated Move API on backend
+      if (pId) {
+        try {
+          const updatedServerCart = await wishlistApi.moveToCart(pId, vId, qty);
+          if (updatedServerCart && Array.isArray(updatedServerCart.items)) {
+            const mappedItems = updatedServerCart.items.map((item) => ({
+              id: item.id || item.variantId,
+              serverItemId: item.id,
+              variantId: item.variantId,
+              name: item.productName || product?.name || "Handloom Attire",
+              price: Number(item.price) || Number(product?.price) || 0,
+              qty: Number(item.quantity) || qty,
+              selectedSize: item.size || options?.size || "Standard",
+              selectedColor: item.color || options?.color || "Default",
+              image: item.imageUrl || product?.image || "/images/placeholder-saree.jpg",
+            }));
+            setCart(mappedItems);
+          }
+          queryClient.invalidateQueries({ queryKey: WISHLIST_KEYS.all });
+          showToast(`Moved "${product?.name || 'item'}" to shopping bag`, "cart");
+          setDrawerOpen(true);
+        } catch (err) {
+          // Fallback: local add + local delete for guest
+          await addToCart(product, qty, { ...options, openDrawer: true });
+          try {
+            await wishlistApi.removeItem(pId);
+            queryClient.invalidateQueries({ queryKey: WISHLIST_KEYS.all });
+          } catch {}
+        }
+      } else {
+        // Guest user fallback
+        await addToCart(product, qty, { ...options, openDrawer: true });
+      }
+    },
+    [addToCart, showToast, queryClient]
   );
 
 
@@ -533,11 +617,18 @@ export function CartProvider({ children }) {
 
   // Calculations based on checked items
   const subtotal = useMemo(() => {
-    return selectedCartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+    return selectedCartItems.reduce((sum, item) => {
+      const price = Number(item.price) || 0;
+      const q = typeof item.qty === "number" ? item.qty : Number(item.qty) || 1;
+      return sum + price * q;
+    }, 0);
   }, [selectedCartItems]);
 
   const totalItemsCount = useMemo(() => {
-    return selectedCartItems.reduce((sum, item) => sum + item.qty, 0);
+    return selectedCartItems.reduce((sum, item) => {
+      const q = typeof item.qty === "number" ? item.qty : Number(item.qty) || 1;
+      return sum + q;
+    }, 0);
   }, [selectedCartItems]);
 
   const discountAmount = useMemo(() => {
@@ -636,6 +727,7 @@ export function CartProvider({ children }) {
     toggleSelectAll,
     removePurchasedItems,
     addToCart,
+    moveToBag,
     changeQty,
     removeItem,
     clearCart,
@@ -693,6 +785,7 @@ export function useCart() {
       setToast: () => {},
       showToast: () => {},
       addToCart: () => {},
+      moveToBag: () => {},
       changeQty: () => {},
       removeItem: () => {},
       clearCart: () => {},

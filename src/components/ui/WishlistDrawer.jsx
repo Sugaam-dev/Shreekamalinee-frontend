@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingBag, Trash2, X, ArrowRight } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCart } from "../../context/CartContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useProductsQuery } from "../../queries/useProductQueries.js";
-import { useWishlistQuery } from "../../queries/useWishlistQueries.js";
+import { useWishlistQuery, WISHLIST_KEYS } from "../../queries/useWishlistQueries.js";
 import { formatCurrency } from "../../utils/formatters.js";
 
 function normalizeWishlistItem(p) {
@@ -13,9 +14,15 @@ function normalizeWishlistItem(p) {
   const activePrice = Number(rawActivePrice) || 0;
   const rawOrigPrice = p.originalPrice ?? p.price ?? activePrice;
   const origPrice = Number(rawOrigPrice) || 0;
+  const variants = Array.isArray(p.variants) ? p.variants : [];
+  const variantId = p.variantId || variants[0]?.id || null;
 
   return {
+    ...p,
     id: p.id,
+    productId: p.productId || p.id,
+    variantId: variantId,
+    variants: variants,
     name: p.name || p.title || "Handcrafted Heritage Saree",
     cat: p.categoryName || p.category?.name || p.cat || "Handloom",
     subcat: p.subCategoryName || p.subCategory?.name || p.parentCategoryName || p.subcat || "",
@@ -32,7 +39,8 @@ function normalizeWishlistItem(p) {
 }
 
 export default function WishlistDrawer() {
-  const { wishlist, toggleWish, addToCart, wishlistOpen, setWishlistOpen, setDrawerOpen } = useCart();
+  const queryClient = useQueryClient();
+  const { wishlist, toggleWish, moveToBag, wishlistOpen, setWishlistOpen, setDrawerOpen } = useCart();
   const { isAuthenticated } = useAuth();
   const { data: dbProducts = [] } = useProductsQuery();
   const { data: serverWishlist = [] } = useWishlistQuery(isAuthenticated);
@@ -63,18 +71,21 @@ export default function WishlistDrawer() {
     const items = [];
     const seenIds = new Set();
 
-    // First add server wishlist products if present
-    if (Array.isArray(serverWishlist) && serverWishlist.length > 0) {
-      serverWishlist.forEach((p) => {
-        const norm = normalizeWishlistItem(p);
-        if (norm && !seenIds.has(String(norm.id))) {
-          seenIds.add(String(norm.id));
-          items.push(norm);
-        }
-      });
+    if (isAuthenticated) {
+      if (Array.isArray(serverWishlist)) {
+        serverWishlist.forEach((p) => {
+          const strId = String(p.id);
+          if ((wishlist.has(p.id) || wishlist.has(strId)) && !seenIds.has(strId)) {
+            seenIds.add(strId);
+            const norm = normalizeWishlistItem(p);
+            if (norm) items.push(norm);
+          }
+        });
+      }
+      return items;
     }
 
-    // Also include local wishlist set IDs
+    // Guest wishlist resolution
     wishlist.forEach((id) => {
       const strId = String(id);
       if (!seenIds.has(strId)) {
@@ -82,25 +93,16 @@ export default function WishlistDrawer() {
         const found = allProductsMap.get(strId);
         if (found) {
           items.push(found);
-        } else {
-          items.push({
-            id,
-            name: `Handloom Item #${id}`,
-            cat: "Royal Weave",
-            price: 1999, // default fallback
-            image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80",
-          });
         }
       }
     });
 
     return items;
-  }, [wishlist, allProductsMap, serverWishlist]);
+  }, [wishlist, allProductsMap, serverWishlist, isAuthenticated]);
 
-  function handleAddToBag(item) {
-    addToCart(item);
+  async function handleAddToBag(item) {
     setWishlistOpen(false);
-    setDrawerOpen(true);
+    await moveToBag(item, { openDrawer: true });
   }
 
   return (

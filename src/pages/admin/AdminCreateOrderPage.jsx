@@ -129,19 +129,19 @@ export default function AdminCreateOrderPage() {
 
   const handleValidateCoupon = async () => {
     if (!form.couponCode?.trim()) {
-      setCouponValidationState({ isValidating: false, appliedCode: "", discount: 0, message: "", error: "Please enter a voucher code" });
+      setCouponValidationState({ isValidating: false, appliedCode: "", discount: 0, message: "", error: "Please enter a coupon code" });
       return;
     }
     setCouponValidationState((prev) => ({ ...prev, isValidating: true, error: "" }));
     try {
-      const res = await couponApi.validateCoupon(form.couponCode.trim(), subtotal);
+      const res = await couponApi.validateCoupon(form.couponCode.trim(), subtotal, form.customerEmail.trim());
       if (res.valid) {
         const disc = Number(res.calculatedDiscount || res.discountAmount || 0);
         setCouponValidationState({
           isValidating: false,
           appliedCode: form.couponCode.trim().toUpperCase(),
           discount: disc,
-          message: `✓ Saved ${formatCurrency(disc)}`,
+          message: `✓ Validated: Saved ${formatCurrency(disc)}`,
           error: "",
         });
         showToast(`Coupon applied! Savings: ${formatCurrency(disc)}`, "success");
@@ -155,14 +155,16 @@ export default function AdminCreateOrderPage() {
         });
         showToast(res.message || "Invalid coupon", "warning");
       }
-    } catch {
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Failed to validate coupon";
       setCouponValidationState({
         isValidating: false,
         appliedCode: "",
         discount: 0,
         message: "",
-        error: "Failed to validate coupon",
+        error: errMsg,
       });
+      showToast(errMsg, "warning");
     }
   };
 

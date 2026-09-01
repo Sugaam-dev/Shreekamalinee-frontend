@@ -8,9 +8,12 @@ export default function EmptyState({
   description = "We couldn't find what you were looking for.",
   actionLabel,
   actionTo,
+  onAction,
   onActionClick,
   className = "",
 }) {
+  const handleButtonClick = onAction || onActionClick;
+
   return (
     <div
       className={`flex flex-col items-center justify-center text-center p-8 md:p-12 border border-dashed border-line rounded-sm bg-white/50 my-6 ${className}`}
@@ -32,7 +35,7 @@ export default function EmptyState({
             </Button>
           </Link>
         ) : (
-          <Button variant="primary" size="md" onClick={onActionClick}>
+          <Button variant="primary" size="md" onClick={handleButtonClick}>
             {actionLabel}
           </Button>
         )

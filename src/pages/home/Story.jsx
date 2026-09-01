@@ -6,7 +6,7 @@ export default function Story() {
 
 
   return (
-    <section id="story" className="pt-4 md:pt-8 pb-16 md:pb-24 bg-cream">
+    <section id="story" className="pt-2 md:pt-4 pb-14 md:pb-20 bg-cream">
       <div className="max-w-[1280px] min-[2000px]:max-w-[2100px] mx-auto px-6 md:px-10 grid md:grid-cols-2 items-center gap-12 md:gap-20">
         
         {/* Left Column: Story photo with sliding entry, no decorative border */}

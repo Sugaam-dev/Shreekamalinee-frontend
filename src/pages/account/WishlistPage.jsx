@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingBag, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProductsQuery } from "../../queries/useProductQueries.js";
-import { useWishlistQuery } from "../../queries/useWishlistQueries.js";
+import { useWishlistQuery, WISHLIST_KEYS } from "../../queries/useWishlistQueries.js";
 import { useCart } from "../../context/CartContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { formatCurrency } from "../../utils/formatters.js";
@@ -17,9 +18,15 @@ function normalizeWishlistItem(p) {
   const activePrice = Number(rawActivePrice) || 0;
   const rawOrigPrice = p.originalPrice ?? p.price ?? activePrice;
   const origPrice = Number(rawOrigPrice) || 0;
+  const variants = Array.isArray(p.variants) ? p.variants : [];
+  const variantId = p.variantId || variants[0]?.id || null;
 
   return {
+    ...p,
     id: p.id,
+    productId: p.productId || p.id,
+    variantId: variantId,
+    variants: variants,
     name: p.name || p.title || "Handcrafted Heritage Saree",
     cat: p.categoryName || p.category?.name || p.cat || "Handloom",
     subcat: p.subCategoryName || p.subCategory?.name || p.parentCategoryName || p.subcat || "",
@@ -36,7 +43,8 @@ function normalizeWishlistItem(p) {
 }
 
 export default function WishlistPage() {
-  const { wishlist, toggleWish, addToCart } = useCart();
+  const queryClient = useQueryClient();
+  const { wishlist, toggleWish, moveToBag } = useCart();
   const { isAuthenticated } = useAuth();
   const { data: dbProducts = [] } = useProductsQuery();
   const { data: serverWishlist = [] } = useWishlistQuery(isAuthenticated);
@@ -47,39 +55,45 @@ export default function WishlistPage() {
   });
 
   const wishlistedItems = useMemo(() => {
-    if (!wishlist || wishlist.size === 0) return [];
-
-    const map = new Map();
-    if (Array.isArray(dbProducts)) {
-      dbProducts.forEach((p) => {
-        const norm = normalizeWishlistItem(p);
-        if (norm) map.set(String(p.id), norm);
-      });
-    }
-
-    if (Array.isArray(serverWishlist)) {
-      serverWishlist.forEach((p) => {
-        const norm = normalizeWishlistItem(p);
-        if (norm) map.set(String(p.id), norm);
-      });
-    }
-
     const items = [];
     const seenIds = new Set();
 
-    wishlist.forEach((id) => {
-      const strId = String(id);
-      if (!seenIds.has(strId)) {
-        seenIds.add(strId);
-        const found = map.get(strId);
-        if (found) {
-          items.push(found);
-        }
+    if (isAuthenticated) {
+      if (Array.isArray(serverWishlist)) {
+        serverWishlist.forEach((p) => {
+          const strId = String(p.id);
+          if ((wishlist.has(p.id) || wishlist.has(strId)) && !seenIds.has(strId)) {
+            seenIds.add(strId);
+            const norm = normalizeWishlistItem(p);
+            if (norm) items.push(norm);
+          }
+        });
       }
-    });
+      return items;
+    }
+
+    // Guest wishlist resolution
+    if (wishlist && wishlist.size > 0 && Array.isArray(dbProducts)) {
+      const dbMap = new Map();
+      dbProducts.forEach((p) => {
+        const norm = normalizeWishlistItem(p);
+        if (norm) dbMap.set(String(p.id), norm);
+      });
+
+      wishlist.forEach((id) => {
+        const strId = String(id);
+        if (!seenIds.has(strId)) {
+          seenIds.add(strId);
+          const found = dbMap.get(strId);
+          if (found) {
+            items.push(found);
+          }
+        }
+      });
+    }
 
     return items;
-  }, [wishlist, dbProducts, serverWishlist]);
+  }, [wishlist, dbProducts, serverWishlist, isAuthenticated]);
 
 
   return (
@@ -142,8 +156,9 @@ export default function WishlistPage() {
                   variant="primary"
                   size="sm"
                   className="w-full"
-                  onClick={() => {
-                    addToCart(item);
+                  onClick={async () => {
+                    await moveToBag(item, { openDrawer: true });
+                    queryClient.invalidateQueries({ queryKey: WISHLIST_KEYS.all });
                   }}
                   icon={ShoppingBag}
                 >

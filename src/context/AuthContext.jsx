@@ -61,6 +61,9 @@ export function AuthProvider({ children }) {
 
   // Direct login setter used after successful password / OTP / SSO mutation
   const setUserSession = useCallback((userData) => {
+    if (userData?.token) {
+      localStorage.setItem("shreekamalinee_token", userData.token);
+    }
     setLocalUser(userData);
     setCachedUser(userData);
     refetchUser();
@@ -71,6 +74,7 @@ export function AuthProvider({ children }) {
     const handleSessionExpired = () => {
       setLocalUser(null);
       setCachedUser(null);
+      localStorage.removeItem("shreekamalinee_token");
       localStorage.removeItem("shreekamalinee_guest_cart");
       localStorage.removeItem("shreekamalinee_guest_wishlist");
       if (typeof window !== "undefined") {
@@ -97,6 +101,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLocalUser(null);
       setCachedUser(null);
+      localStorage.removeItem("shreekamalinee_token");
       localStorage.removeItem("shreekamalinee_guest_cart");
       localStorage.removeItem("shreekamalinee_guest_wishlist");
     }

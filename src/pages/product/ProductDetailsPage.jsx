@@ -263,10 +263,15 @@ export default function ProductDetailsPage() {
   };
 
   // 10. Add to Bag & Buy Now Handlers
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product || isSoldOut) return;
-    addToCart(product, qty, { ...selectedVariant, openDrawer: true });
-    showToast(`Added "${product.name}" to your shopping bag!`, "success");
+    const targetVariantId = selectedVariant?.id || variants?.[0]?.id || null;
+    await addToCart(product, qty, {
+      variantId: targetVariantId,
+      size: selectedVariant?.size || "Standard",
+      color: selectedVariant?.color || "Default",
+      openDrawer: true,
+    });
   };
 
   const handleBuyNow = () => {

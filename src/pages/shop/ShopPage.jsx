@@ -1022,8 +1022,8 @@ export default function ShopPage() {
   );
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen py-6 sm:py-8 md:py-12">
-      <div className="max-w-[1400px] 2xl:max-w-[1700px] 3xl:max-w-[2100px] 4k:max-w-[2560px] mx-auto px-3.5 sm:px-6 md:px-8 2xl:px-12">
+    <div className="bg-[#FAF8F5] min-h-screen py-4 sm:py-8 md:py-12 overflow-x-hidden w-full">
+      <div className="max-w-[1400px] 2xl:max-w-[1700px] 3xl:max-w-[2100px] 4k:max-w-[2560px] mx-auto px-3 sm:px-6 md:px-8 2xl:px-12 w-full min-w-0">
         <Breadcrumb
           items={[
             { label: "Home", to: "/" },
@@ -1039,18 +1039,18 @@ export default function ShopPage() {
 
 
         {/* Page Banner & In-Page Search Bar */}
-        <div className="my-6 bg-white border border-gray-200 rounded-sm p-6 md:p-8 shadow-xs">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="my-4 sm:my-6 bg-white border border-gray-200 rounded-sm p-4 sm:p-6 md:p-8 shadow-xs">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
             <div>
-              <span className="text-[11px] uppercase tracking-[0.25em] text-[#800020] font-bold block mb-1">
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[#800020] font-bold block mb-1">
                 Authentic Handloom Collection
               </span>
-              <h1 className="font-serif text-2xl md:text-4xl font-bold text-gray-900">
+              <h1 className="font-serif text-xl sm:text-2xl md:text-4xl font-bold text-gray-900 leading-tight">
                 {selectedCategory === "All"
                   ? "Explore All Handlooms & Ethnic Attire"
                   : selectedCategory}
               </h1>
-              <p className="text-xs text-gray-500 mt-1 max-w-xl">
+              <p className="text-[11px] sm:text-xs text-gray-500 mt-1 max-w-xl">
                 Browse through genuine Silk Mark certified weaves, royal bridal collections, and heritage handloom attire.
               </p>
             </div>
@@ -1093,8 +1093,8 @@ export default function ShopPage() {
         </div>
 
         {/* Top Control Bar: Total Count, Sorting & Grid Toggle */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white border border-gray-200 rounded-sm p-3.5 shadow-xs">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 bg-white border border-gray-200 rounded-sm p-3 sm:p-3.5 shadow-xs w-full min-w-0">
+          <div className="flex items-center justify-between sm:justify-start gap-3">
             {/* Mobile Filter Trigger */}
             <button
               onClick={() => setMobileFilterOpen(true)}
@@ -1107,20 +1107,20 @@ export default function ShopPage() {
             </button>
 
             <span className="text-xs text-gray-600 font-medium">
-              Showing <strong>{filteredProducts.length}</strong> authentic creations
+              Showing <strong>{filteredProducts.length}</strong> items
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
             {/* Sorting Dropdown */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-gray-500 font-semibold hidden sm:inline">
+            <div className="flex items-center gap-2 text-xs w-full sm:w-auto">
+              <span className="text-gray-500 font-semibold hidden sm:inline shrink-0">
                 Sort By:
               </span>
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="text-xs border border-gray-300 rounded-xs py-1.5 px-3 bg-white outline-none cursor-pointer focus:border-[#800020] font-medium text-gray-800"
+                className="w-full sm:w-auto text-xs border border-gray-300 rounded-xs py-1.5 px-3 bg-white outline-none cursor-pointer focus:border-[#800020] font-medium text-gray-800"
               >
                 <option value="featured">Featured / Curated</option>
                 <option value="newest">Newest Arrivals</option>
@@ -1245,21 +1245,21 @@ export default function ShopPage() {
           </aside>
 
           {/* Products Grid Column */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0 w-full">
             {/* Top Subcategory Horizontal Quick-Pill Filter (Visible when a Category is chosen) */}
             {selectedCategory !== "All" && currentCategorySubcats.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-sm p-3 shadow-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] uppercase font-bold tracking-wider text-gray-700 flex items-center gap-1.5">
-                    <Layers size={13} className="text-[#800020]" />
-                    <span>Explore {selectedCategory} Subcategories / Weaves:</span>
+              <div className="bg-white border border-gray-200 rounded-sm p-3 shadow-xs space-y-2 min-w-0 w-full overflow-hidden">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="text-[11px] uppercase font-bold tracking-wider text-gray-700 flex items-center gap-1.5 truncate">
+                    <Layers size={13} className="text-[#800020] shrink-0" />
+                    <span className="truncate">Explore {selectedCategory}:</span>
                   </span>
-                  <span className="text-[10.5px] text-gray-400 font-medium">
+                  <span className="text-[10.5px] text-gray-400 font-medium shrink-0">
                     {currentCategorySubcats.length} varieties
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 w-full min-w-0">
                   <button
                     type="button"
                     onClick={() => handleSubcatClick("All")}
@@ -1310,12 +1310,13 @@ export default function ShopPage() {
                 ))}
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="bg-white border border-gray-200 rounded-sm p-12 text-center shadow-xs">
+              <div className="bg-white border border-gray-200 rounded-sm p-6 sm:p-12 text-center shadow-xs min-w-0 w-full">
                 <EmptyState
                   title="No Handloom Creations Found"
                   description="Try adjusting your filter criteria or search query to find more masterpieces."
                   actionLabel="Reset All Filters"
                   onAction={resetAllFilters}
+                  onActionClick={resetAllFilters}
                 />
               </div>
             ) : (
