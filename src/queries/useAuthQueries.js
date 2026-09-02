@@ -140,3 +140,14 @@ export function useLogoutMutation() {
     },
   });
 }
+
+// 12. Hook to check public email quota & service status
+export function useEmailServiceStatusQuery() {
+  return useQuery({
+    queryKey: ["auth", "emailServiceStatus"],
+    queryFn: authApi.getEmailServiceStatus,
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    retry: 1,
+    refetchOnWindowFocus: true,
+  });
+}

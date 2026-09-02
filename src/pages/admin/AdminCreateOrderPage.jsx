@@ -18,6 +18,7 @@ import { formatCurrency } from "../../utils/formatters.js";
 import { useCreateAdminManualOrderMutation } from "../../queries/useOrderQueries.js";
 import { useProductsQuery } from "../../queries/useProductQueries.js";
 import { useCustomersQuery } from "../../queries/useCustomerQueries.js";
+import { useSystemEnumsQuery } from "../../queries/useSettingsQueries.js";
 import couponApi from "../../api/couponApi.js";
 import { useCart } from "../../context/CartContext.jsx";
 import AdminLayout from "../../components/admin/AdminLayout.jsx";
@@ -30,6 +31,7 @@ export default function AdminCreateOrderPage() {
 
   const { data: catalogProducts = [] } = useProductsQuery();
   const { data: customerList = [] } = useCustomersQuery();
+  const { data: systemEnums } = useSystemEnumsQuery();
   const createManualOrderMutation = useCreateAdminManualOrderMutation();
 
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
@@ -61,6 +63,19 @@ export default function AdminCreateOrderPage() {
     message: "",
     error: "",
   });
+
+  const adminPaymentMethods = useMemo(() => {
+    if (systemEnums?.adminPaymentMethods && Array.isArray(systemEnums.adminPaymentMethods)) {
+      return systemEnums.adminPaymentMethods;
+    }
+    return [
+      { key: "WHATSAPP_UPI", label: "WhatsApp Direct UPI / GPay / PhonePe", isSelectable: true },
+      { key: "DIRECT_BANK", label: "NEFT / RTGS Direct Bank Transfer", isSelectable: true },
+      { key: "COD", label: "Cash on Delivery (COD)", isSelectable: true },
+      { key: "MANUAL", label: "Manual Offline Payment", isSelectable: true },
+      { key: "RAZORPAY", label: "Razorpay Online Gateway (Not Implemented)", isSelectable: false },
+    ];
+  }, [systemEnums]);
 
   const matchingCustomers = useMemo(() => {
     if (!customerSearchQuery.trim()) return [];
@@ -544,9 +559,16 @@ export default function AdminCreateOrderPage() {
                       onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-xs bg-white focus:border-[#800020] outline-none font-medium"
                     >
-                      <option value="WHATSAPP_UPI">WhatsApp Direct UPI / GPay / PhonePe</option>
-                      <option value="DIRECT_BANK">NEFT / RTGS Direct Bank Transfer</option>
-                      <option value="COD">Cash on Delivery (COD)</option>
+                      {adminPaymentMethods.map((pm) => (
+                        <option
+                          key={pm.key}
+                          value={pm.key}
+                          disabled={pm.isSelectable === false}
+                          className={pm.isSelectable === false ? "text-gray-400 bg-gray-100 italic" : ""}
+                        >
+                          {pm.label} {pm.isSelectable === false ? "— [Unavailable / Not Supported]" : ""}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

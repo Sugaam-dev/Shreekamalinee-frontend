@@ -99,51 +99,78 @@ export default function ShopPage() {
   const matchSearch = (p, q) => {
     if (!q || !q.trim()) return true;
     const s = q.toLowerCase().trim();
-    return (
-      (p.name && p.name.toLowerCase().includes(s)) ||
-      (p.sku && p.sku.toLowerCase().includes(s)) ||
-      (p.brand && p.brand.toLowerCase().includes(s)) ||
-      (p.description && p.description.toLowerCase().includes(s)) ||
-      (p.color && p.color.toLowerCase().includes(s)) ||
-      (p.fabric && p.fabric.toLowerCase().includes(s)) ||
-      (p.highlights &&
-        Object.values(p.highlights).some((v) =>
-          String(v).toLowerCase().includes(s)
-        ))
-    );
+    const tokens = s.split(/\s+/);
+    const searchable = [
+      p.name,
+      p.sku,
+      p.brand,
+      p.description,
+      p.categoryName,
+      p.parentCategoryName,
+      p.cat,
+      p.subcat,
+      p.color,
+      p.fabric,
+      p.season,
+      p.occasion,
+      p.artisanalStory,
+      p.highlights ? Object.values(p.highlights).join(" ") : "",
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    if (searchable.includes(s)) return true;
+    return tokens.every((t) => searchable.includes(t));
   };
 
   const matchCategory = (p, cat, tree) => {
-    if (cat === "All") return true;
+    if (!cat || cat === "All") return true;
+    const catLower = cat.toLowerCase();
     const selectedTree = tree.find(
-      (c) => c.name.toLowerCase() === cat.toLowerCase()
+      (c) => c.name.toLowerCase() === catLower
     );
     if (selectedTree) {
       const allowedCategoryIds = [
         selectedTree.id,
         ...selectedTree.subcats.map((s) => s.id),
       ];
-      if (p.categoryId) return allowedCategoryIds.includes(p.categoryId);
-      return (
-        (p.cat && p.cat.toLowerCase() === cat.toLowerCase()) ||
-        (p.categoryName && p.categoryName.toLowerCase() === cat.toLowerCase()) ||
-        (p.parentCategoryName && p.parentCategoryName.toLowerCase() === cat.toLowerCase())
-      );
+      if (p.categoryId && allowedCategoryIds.includes(p.categoryId)) return true;
     }
     return (
-      (p.cat && p.cat.toLowerCase() === cat.toLowerCase()) ||
-      (p.categoryName && p.categoryName.toLowerCase() === cat.toLowerCase())
+      (p.cat && p.cat.toLowerCase() === catLower) ||
+      (p.categoryName && p.categoryName.toLowerCase() === catLower) ||
+      (p.parentCategoryName && p.parentCategoryName.toLowerCase() === catLower)
     );
   };
 
-  const matchSubcategory = (p, sub, cats) => {
-    if (sub === "All") return true;
-    const selectedSub = cats.find(
-      (c) => c.name.toLowerCase() === sub.toLowerCase()
-    );
-    if (selectedSub && p.categoryId === selectedSub.id) return true;
-    if (p.categoryName && p.categoryName.toLowerCase() === sub.toLowerCase()) return true;
-    return p.subcat && p.subcat.toLowerCase() === sub.toLowerCase();
+  const matchSubcategory = (p, sub, cats, selectedCat, tree) => {
+    if (!sub || sub === "All") return true;
+    const subLower = sub.toLowerCase();
+
+    // 1. If parent category is selected, find the subcategory under THAT parent
+    if (selectedCat && selectedCat !== "All") {
+      const parentLower = selectedCat.toLowerCase();
+      const parentTree = tree.find((c) => c.name.toLowerCase() === parentLower);
+      if (parentTree) {
+        const matchingChild = parentTree.subcats.find((sc) => sc.name.toLowerCase() === subLower);
+        if (matchingChild && p.categoryId === matchingChild.id) return true;
+      }
+      // Also match by categoryName if parent matches
+      if (p.categoryName && p.categoryName.toLowerCase() === subLower) {
+        if (p.parentCategoryName && p.parentCategoryName.toLowerCase() === parentLower) return true;
+        if (p.cat && p.cat.toLowerCase() === parentLower) return true;
+      }
+    }
+
+    // 2. Direct match by categoryId if any matching subcategory exists
+    const matchingCats = cats.filter((c) => c.name.toLowerCase() === subLower);
+    if (matchingCats.length > 0 && matchingCats.some((c) => p.categoryId === c.id)) {
+      return true;
+    }
+
+    // 3. Fallback match by categoryName or subcat
+    if (p.categoryName && p.categoryName.toLowerCase() === subLower) return true;
+    if (p.subcat && p.subcat.toLowerCase() === subLower) return true;
+
+    return false;
   };
 
   const matchPrice = (p, preset, minP, maxP) => {
@@ -268,7 +295,7 @@ export default function ShopPage() {
     dbProducts.forEach((p) => {
       if (
         matchCategory(p, selectedCategory, categoryTree) &&
-        matchSubcategory(p, selectedSubcat, dbCategories) &&
+        matchSubcategory(p, selectedSubcat, dbCategories, selectedCategory, categoryTree) &&
         matchSearch(p, searchQuery) &&
         matchPrice(p, pricePreset, customMinPrice, customMaxPrice) &&
         matchStock(p, stockFilter) &&
@@ -300,7 +327,7 @@ export default function ShopPage() {
     dbProducts.forEach((p) => {
       if (
         matchCategory(p, selectedCategory, categoryTree) &&
-        matchSubcategory(p, selectedSubcat, dbCategories) &&
+        matchSubcategory(p, selectedSubcat, dbCategories, selectedCategory, categoryTree) &&
         matchSearch(p, searchQuery) &&
         matchPrice(p, pricePreset, customMinPrice, customMaxPrice) &&
         matchStock(p, stockFilter) &&
@@ -343,54 +370,19 @@ export default function ShopPage() {
 
     // 1. Category Filter
     if (selectedCategory !== "All") {
-      const selectedTree = categoryTree.find(
-        (c) => c.name.toLowerCase() === selectedCategory.toLowerCase()
-      );
-      if (selectedTree) {
-        const allowedCategoryIds = [
-          selectedTree.id,
-          ...selectedTree.subcats.map((s) => s.id),
-        ];
-        list = list.filter((p) => {
-          if (p.categoryId) return allowedCategoryIds.includes(p.categoryId);
-          return (
-            (p.cat && p.cat.toLowerCase() === selectedCategory.toLowerCase()) ||
-            (p.categoryName &&
-              p.categoryName.toLowerCase() === selectedCategory.toLowerCase())
-          );
-        });
-      }
+      list = list.filter((p) => matchCategory(p, selectedCategory, categoryTree));
     }
 
     // 2. Subcategory Filter
     if (selectedSubcat !== "All") {
-      const selectedSub = dbCategories.find(
-        (c) => c.name.toLowerCase() === selectedSubcat.toLowerCase()
+      list = list.filter((p) =>
+        matchSubcategory(p, selectedSubcat, dbCategories, selectedCategory, categoryTree)
       );
-      list = list.filter((p) => {
-        if (selectedSub && p.categoryId === selectedSub.id) return true;
-        return (
-          p.subcat && p.subcat.toLowerCase() === selectedSubcat.toLowerCase()
-        );
-      });
     }
 
-    // 3. Search Query Filter (Matches Name, SKU, Brand, Fabric, Color, Description)
+    // 3. Search Query Filter (Matches Name, SKU, Brand, Fabric, Color, Description, Categories)
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          (p.name && p.name.toLowerCase().includes(q)) ||
-          (p.sku && p.sku.toLowerCase().includes(q)) ||
-          (p.brand && p.brand.toLowerCase().includes(q)) ||
-          (p.description && p.description.toLowerCase().includes(q)) ||
-          (p.color && p.color.toLowerCase().includes(q)) ||
-          (p.fabric && p.fabric.toLowerCase().includes(q)) ||
-          (p.highlights &&
-            Object.values(p.highlights).some((v) =>
-              String(v).toLowerCase().includes(q)
-            ))
-      );
+      list = list.filter((p) => matchSearch(p, searchQuery));
     }
 
     // 4. Season / Occasion Filter

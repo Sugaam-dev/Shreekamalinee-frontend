@@ -139,14 +139,13 @@ export default function CheckoutPage() {
     return standardShippingFee;
   }, [isFreeShippingPromo, checkoutSubtotal, freeShippingThreshold, standardShippingFee]);
 
-  // Determine initial active payment method
+  // Determine initial active payment method (Default to Direct UPI / COD / WhatsApp; Razorpay is not implemented)
   const initialPaymentMethod = useMemo(() => {
-    if (isRazorpayPaymentActive) return "RAZORPAY";
     if (isUpiPaymentActive) return "UPI_DIRECT";
     if (isCodPaymentActive) return "COD";
     if (isWhatsappOrderActive) return "WHATSAPP";
-    return "RAZORPAY";
-  }, [isRazorpayPaymentActive, isUpiPaymentActive, isCodPaymentActive, isWhatsappOrderActive]);
+    return "UPI_DIRECT";
+  }, [isUpiPaymentActive, isCodPaymentActive, isWhatsappOrderActive]);
 
   const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -183,24 +182,21 @@ export default function CheckoutPage() {
   }, [addresses, selectedAddressId]);
 
   useEffect(() => {
-    if (paymentMethod === "RAZORPAY" && !isRazorpayPaymentActive) {
+    if (paymentMethod === "RAZORPAY") {
       if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
       else if (isCodPaymentActive) setPaymentMethod("COD");
       else if (isWhatsappOrderActive) setPaymentMethod("WHATSAPP");
     } else if (paymentMethod === "UPI_DIRECT" && !isUpiPaymentActive) {
-      if (isRazorpayPaymentActive) setPaymentMethod("RAZORPAY");
-      else if (isCodPaymentActive) setPaymentMethod("COD");
+      if (isCodPaymentActive) setPaymentMethod("COD");
       else if (isWhatsappOrderActive) setPaymentMethod("WHATSAPP");
     } else if (paymentMethod === "COD" && !isCodPaymentActive) {
-      if (isRazorpayPaymentActive) setPaymentMethod("RAZORPAY");
-      else if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
+      if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
       else if (isWhatsappOrderActive) setPaymentMethod("WHATSAPP");
     } else if (paymentMethod === "WHATSAPP" && !isWhatsappOrderActive) {
-      if (isRazorpayPaymentActive) setPaymentMethod("RAZORPAY");
-      else if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
+      if (isUpiPaymentActive) setPaymentMethod("UPI_DIRECT");
       else if (isCodPaymentActive) setPaymentMethod("COD");
     }
-  }, [isRazorpayPaymentActive, isUpiPaymentActive, isCodPaymentActive, isWhatsappOrderActive, paymentMethod]);
+  }, [isUpiPaymentActive, isCodPaymentActive, isWhatsappOrderActive, paymentMethod]);
 
   const userFullName = user
     ? (user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.name || "")
@@ -601,7 +597,7 @@ ${addressText}
               </div>
 
               <div className="space-y-3">
-                {/* Razorpay Online */}
+                {/* Razorpay Online (Driven dynamically by backend isRazorpayPaymentActive) */}
                 {isRazorpayPaymentActive && (
                   <label
                     className={`flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 border rounded-sm cursor-pointer transition-all ${

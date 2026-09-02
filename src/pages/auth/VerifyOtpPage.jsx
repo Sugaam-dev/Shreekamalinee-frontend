@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
 import AuthLayout from "../../components/layout/AuthLayout.jsx";
 import Button from "../../components/common/Button.jsx";
+import EmailQuotaNotice from "../../components/common/EmailQuotaNotice.jsx";
 import useSEO from "../../hooks/useSEO.js";
 
 export default function VerifyOtpPage() {
@@ -171,7 +172,7 @@ export default function VerifyOtpPage() {
           Verify & Complete Registration
         </Button>
 
-        {/* Resend OTP Timer */}
+        {/* Resend OTP Timer & Email Quota Assistance */}
         <div className="text-center text-xs text-charcoal/70">
           {timer > 0 ? (
             <span>Resend code in <strong className="text-rust font-mono">{timer}s</strong></span>
@@ -186,6 +187,9 @@ export default function VerifyOtpPage() {
             </button>
           )}
         </div>
+
+        {/* Email Limit & Quota Help Notice */}
+        <EmailQuotaNotice showHelpButton={true} className="pt-2" />
 
         <div className="text-center pt-2 border-t border-line text-xs">
           <Link

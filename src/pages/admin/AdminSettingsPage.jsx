@@ -747,17 +747,23 @@ export default function AdminSettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between p-3 border border-gray-200 rounded-xs bg-gray-50 cursor-pointer hover:border-gray-300">
+              <div className="flex items-center justify-between p-3 border border-gray-200 rounded-xs bg-gray-100/70 opacity-50 cursor-not-allowed select-none">
                 <div className="space-y-0.5 pr-2">
-                  <span className="font-bold text-gray-900 block text-xs">Razorpay Gateway</span>
-                  <span className="text-[10px] text-gray-500">Cards / Netbanking / Apps</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-gray-500 block text-xs">Razorpay Gateway</span>
+                    <span className="text-[9.5px] font-bold uppercase bg-gray-200 text-gray-600 px-1.5 py-0.2 rounded">
+                      Disabled
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gray-400">Online payment gateway not implemented</span>
                 </div>
                 <input
                   type="checkbox"
-                  {...regBank("isRazorpayPaymentActive")}
-                  className="accent-[#800020] w-4 h-4 cursor-pointer"
+                  disabled
+                  checked={false}
+                  className="w-4 h-4 cursor-not-allowed opacity-40"
                 />
-              </label>
+              </div>
 
               <label className="flex items-center justify-between p-3 border border-gray-200 rounded-xs bg-gray-50 cursor-pointer hover:border-gray-300">
                 <div className="space-y-0.5 pr-2">

@@ -101,21 +101,21 @@ function normalizeOrderDetail(o, id) {
     estimatedDeliveryDate: o.estimatedDeliveryDate || null,
     cancellationReason: o.cancellationReason || null,
     shippingAddress: o.shippingAddress ? {
-      name: o.shippingAddress.fullName || "Patron Customer",
+      name: o.shippingAddress.fullName || o.shippingAddress.name || "Patron Customer",
       addressLine1: o.shippingAddress.addressLine1 || "",
       addressLine2: o.shippingAddress.addressLine2 || "",
       city: o.shippingAddress.city || "",
       state: o.shippingAddress.state || "",
       pincode: o.shippingAddress.postalCode || o.shippingAddress.pincode || "",
       phone: o.shippingAddress.phoneNumber || o.shippingAddress.phone || "",
-    } : {
-      name: "Patron Delivery Address",
-      addressLine1: "Standard Handloom Delivery",
-      city: "Mumbai",
-      state: "Maharashtra",
-      pincode: "400001",
-      phone: "+91 98207 85210",
-    },
+      fullAddress: [
+        o.shippingAddress.addressLine1,
+        o.shippingAddress.addressLine2,
+        o.shippingAddress.city,
+        o.shippingAddress.state,
+        o.shippingAddress.postalCode || o.shippingAddress.pincode,
+      ].filter(Boolean).join(", "),
+    } : null,
     timeline,
     items: (o.items || []).map((item) => ({
       name: item.productName || item.name || "Handcrafted Heritage Saree",
@@ -387,11 +387,25 @@ export default function OrderDetailsPage() {
               <MapPin size={15} className="text-rust" />
               <span>Delivery Address</span>
             </h4>
-            <div className="text-xs text-charcoal/80 space-y-1 leading-relaxed">
-              <strong className="block text-charcoal">{order.shippingAddress.name}</strong>
-              <p>{order.shippingAddress.fullAddress}</p>
-              <p>Phone: +91 {order.shippingAddress.phone}</p>
-            </div>
+            {order.shippingAddress ? (
+              <div className="text-xs text-charcoal/80 space-y-1.5 leading-relaxed">
+                <strong className="block text-charcoal font-semibold text-sm">{order.shippingAddress.name}</strong>
+                <p className="text-charcoal/85 leading-relaxed">
+                  {order.shippingAddress.fullAddress || [
+                    order.shippingAddress.addressLine1,
+                    order.shippingAddress.addressLine2,
+                    order.shippingAddress.city,
+                    order.shippingAddress.state,
+                    order.shippingAddress.pincode
+                  ].filter(Boolean).join(", ")}
+                </p>
+                {order.shippingAddress.phone && (
+                  <p className="text-charcoal/70 pt-0.5 font-medium">📞 +91 {order.shippingAddress.phone}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-charcoal/50 italic">Delivery address not recorded</p>
+            )}
           </div>
 
           {/* Payment Breakdown */}

@@ -75,6 +75,12 @@ export const authApi = {
     const response = await apiClient.post("/api/v1/auth/logout");
     return response.data;
   },
+
+  // 13. Public Email Service Quota & Health Status
+  getEmailServiceStatus: async () => {
+    const response = await apiClient.get("/api/v1/auth/email-service-status");
+    return response.data;
+  },
 };
 
 export default authApi;

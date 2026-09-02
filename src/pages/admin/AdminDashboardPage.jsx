@@ -15,6 +15,9 @@ import {
   Receipt,
   Truck,
   Package,
+  Mail,
+  Send,
+  ShieldAlert,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "../../utils/formatters.js";
 import {
@@ -145,6 +148,125 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* 📧 Transactional Email Quota & Health Tracker */}
+        {stats?.emailStats && (
+          <div className="bg-white border border-gray-200 rounded-xs shadow-xs p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                  <Mail size={16} />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-sm text-gray-900 flex items-center gap-2">
+                    <span>Transactional Email & OTP Quota</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      stats.emailStats.dailyQuotaExceeded
+                        ? "bg-rose-100 text-rose-800"
+                        : (stats.emailStats.sentToday / (stats.emailStats.dailyLimit || 100)) >= 0.8
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                      {stats.emailStats.dailyQuotaExceeded
+                        ? "Daily Limit Reached"
+                        : (stats.emailStats.sentToday / (stats.emailStats.dailyLimit || 100)) >= 0.8
+                        ? "Quota Low (>80%)"
+                        : "Operational (Active)"}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Live delivery counter for OTP verification, order confirmations, and receipt dispatches
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[11px] text-gray-400">Resets daily at </span>
+                <span className="text-[11px] font-mono font-bold text-gray-700">{stats.emailStats.quotaResetTime || "12:00 AM UTC"}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+              {/* Today's Usage Bar */}
+              <div className="bg-gray-50 border border-gray-100 rounded-xs p-3.5 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-gray-700">Today's Delivery</span>
+                  <span className="font-mono font-bold text-gray-900">
+                    {stats.emailStats.sentToday} / {stats.emailStats.dailyLimit} emails
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 rounded-full ${
+                      (stats.emailStats.sentToday / (stats.emailStats.dailyLimit || 100)) >= 0.9
+                        ? "bg-rose-600"
+                        : (stats.emailStats.sentToday / (stats.emailStats.dailyLimit || 100)) >= 0.75
+                        ? "bg-amber-500"
+                        : "bg-emerald-600"
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.round((stats.emailStats.sentToday / (stats.emailStats.dailyLimit || 100)) * 100))}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-gray-500">
+                  <span>{stats.emailStats.remainingToday} remaining today</span>
+                  <span className="font-medium">
+                    {Math.round((stats.emailStats.sentToday / (stats.emailStats.dailyLimit || 100)) * 100)}% used
+                  </span>
+                </div>
+              </div>
+
+              {/* Monthly Usage */}
+              <div className="bg-gray-50 border border-gray-100 rounded-xs p-3.5 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-gray-700">Monthly Usage</span>
+                  <span className="font-mono font-bold text-gray-900">
+                    {stats.emailStats.sentThisMonth} / {stats.emailStats.monthlyLimit}
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, Math.round((stats.emailStats.sentThisMonth / (stats.emailStats.monthlyLimit || 3000)) * 100))}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-gray-500">
+                  <span>{stats.emailStats.remainingThisMonth} remaining this month</span>
+                  <span className="font-medium">
+                    {Math.round((stats.emailStats.sentThisMonth / (stats.emailStats.monthlyLimit || 3000)) * 100)}% used
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Notice / Upgrade Advice */}
+              <div className="bg-gray-50 border border-gray-100 rounded-xs p-3.5 flex flex-col justify-between">
+                <div className="text-xs space-y-1">
+                  <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                    <Send size={13} className="text-[#800020]" />
+                    <span>Free Tier Protection</span>
+                  </span>
+                  <p className="text-[11px] text-gray-600 leading-tight">
+                    Smart auto-retry active for 2 emails/sec burst protection. If quota reaches 100, users are guided to Google SSO.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <a
+                    href="https://resend.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-[#800020] hover:underline font-bold inline-flex items-center gap-1"
+                  >
+                    <span>View logs on Resend.com</span>
+                    <ArrowUpRight size={12} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Action Banner if Pending Manual Receipts Exist */}
         {pendingManualCount > 0 && (

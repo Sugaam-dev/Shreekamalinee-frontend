@@ -42,22 +42,31 @@ export default function SearchModal({ isOpen, onClose }) {
   const matchedProducts = useMemo(() => {
     if (!searchTerm.trim()) return [];
     const q = searchTerm.toLowerCase().trim();
+    const tokens = q.split(/\s+/);
     const list = Array.isArray(dbProducts) ? dbProducts : [];
     return list
       .filter((p) => {
-        const name = p.name || "";
-        const cat = p.categoryName || p.category?.name || "";
-        const brand = p.brand || "";
-        return (
-          name.toLowerCase().includes(q) ||
-          cat.toLowerCase().includes(q) ||
-          brand.toLowerCase().includes(q)
-        );
+        const searchable = [
+          p.name,
+          p.sku,
+          p.brand,
+          p.description,
+          p.categoryName,
+          p.parentCategoryName,
+          p.category?.name,
+          p.cat,
+          p.subcat,
+          p.color,
+          p.fabric,
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        if (searchable.includes(q)) return true;
+        return tokens.every((t) => searchable.includes(t));
       })
       .map((p) => ({
         id: p.id,
         name: p.name,
-        cat: p.categoryName || p.category?.name || "Handloom",
+        cat: p.categoryName || p.parentCategoryName || p.category?.name || "Handloom",
         price: Number(p.offerPrice || p.price || p.originalPrice || 0),
         image:
           (Array.isArray(p.imageUrls) && p.imageUrls[0]) ||

@@ -20,6 +20,7 @@ import { useCart } from "../../context/CartContext.jsx";
 import AuthLayout from "../../components/layout/AuthLayout.jsx";
 import Button from "../../components/common/Button.jsx";
 import PasswordStrengthMeter from "../../components/common/PasswordStrengthMeter.jsx";
+import EmailQuotaNotice from "../../components/common/EmailQuotaNotice.jsx";
 import useSEO from "../../hooks/useSEO.js";
 
 export default function RegisterPage() {
@@ -353,6 +354,9 @@ export default function RegisterPage() {
             Sign In
           </Link>
         </p>
+
+        {/* Email Limit / OTP Quota Notice & Help Modal */}
+        <EmailQuotaNotice showHelpButton={true} className="pt-2 border-t border-line/60" />
       </div>
     </AuthLayout>
   );

@@ -40,6 +40,12 @@ export const settingsApi = {
     });
     return response.data;
   },
+
+  // 7. Fetch System Enums & Payment Methods Metadata
+  getSystemEnums: async () => {
+    const response = await apiClient.get("/api/v1/metadata/enums");
+    return response.data;
+  },
 };
 
 export default settingsApi;

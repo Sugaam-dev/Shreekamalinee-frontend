@@ -10,6 +10,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
 import AuthLayout from "../../components/layout/AuthLayout.jsx";
 import Button from "../../components/common/Button.jsx";
+import EmailQuotaNotice from "../../components/common/EmailQuotaNotice.jsx";
 import useSEO from "../../hooks/useSEO.js";
 
 export default function LoginPage() {
@@ -249,7 +250,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Footer Registration Link */}
+        {/* Footer Registration Link & Email Quota Assistance */}
         <div className="text-center pt-2 text-xs text-charcoal/70">
           <span>New patron to Shreekamalinee? </span>
           <Link
@@ -259,6 +260,9 @@ export default function LoginPage() {
             Create an Account
           </Link>
         </div>
+
+        {/* Email Limit / OTP Quota Notice & Help Modal */}
+        <EmailQuotaNotice showHelpButton={true} className="pt-2 border-t border-line/60" />
       </div>
     </AuthLayout>
   );
