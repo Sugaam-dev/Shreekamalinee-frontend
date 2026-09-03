@@ -62,7 +62,14 @@ apiClient.interceptors.response.use(
       originalRequest?.url?.includes(ep)
     );
 
+    const hasSavedToken =
+      typeof window !== "undefined" &&
+      Boolean(localStorage.getItem("shreekamalinee_token"));
 
+    // If /auth/me returns 401 and user was never logged in, reject silently without firing session-expired
+    if (originalRequest?.url?.includes("/auth/me") && !hasSavedToken) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry && !isNoRefreshEndpoint) {
       if (isRefreshing) {

@@ -78,10 +78,15 @@ export function AuthProvider({ children }) {
       localStorage.removeItem("shreekamalinee_guest_cart");
       localStorage.removeItem("shreekamalinee_guest_wishlist");
       if (typeof window !== "undefined") {
-        if (
-          window.location.pathname.startsWith("/account") ||
-          window.location.pathname.startsWith("/checkout") ||
-          window.location.pathname.startsWith("/admin")
+        const path = window.location.pathname;
+        if (path === "/admin/login" || path === "/login") {
+          return; // Do not redirect if already on a login page
+        }
+        if (path.startsWith("/admin")) {
+          window.location.href = "/admin/login?sessionExpired=true";
+        } else if (
+          path.startsWith("/account") ||
+          path.startsWith("/checkout")
         ) {
           window.location.href = "/login?sessionExpired=true";
         }
