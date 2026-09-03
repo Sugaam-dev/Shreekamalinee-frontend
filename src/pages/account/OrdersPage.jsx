@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import AccountLayout from "../../components/layout/AccountLayout.jsx";
 import OrderCard from "../../components/cards/OrderCard.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
+import Pagination from "../../components/common/Pagination.jsx";
 import useSEO from "../../hooks/useSEO.js";
 
 function normalizeOrder(o) {
@@ -39,7 +40,8 @@ function normalizeOrder(o) {
 
 export default function OrdersPage() {
   const { isAuthenticated } = useAuth();
-  const { data: dbOrders = [] } = useUserOrdersQuery();
+  const [page, setPage] = useState(1);
+  const { data: responseData, isLoading } = useUserOrdersQuery({ page: page - 1, size: 10 });
 
   useSEO({
     title: "My Orders — Shreekamalinee",
@@ -49,7 +51,12 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState("ALL"); // ALL | PROCESSING | DELIVERED | CANCELLED
   const [searchQuery, setSearchQuery] = useState("");
 
-  const rawOrders = Array.isArray(dbOrders) ? dbOrders.map(normalizeOrder).filter(Boolean) : [];
+  const ordersList = Array.isArray(responseData)
+    ? responseData
+    : responseData?.content || [];
+  const totalPages = responseData?.totalPages || 1;
+
+  const rawOrders = ordersList.map(normalizeOrder).filter(Boolean);
 
 
   const filteredOrders = useMemo(() => {
@@ -103,7 +110,10 @@ export default function OrdersPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setPage(1);
+                }}
                 className={`px-3.5 py-1.5 rounded-sm text-xs uppercase tracking-wider font-semibold transition-colors shrink-0 cursor-pointer ${
                   activeTab === tab.id
                     ? "bg-rust text-white shadow-xs"
@@ -134,6 +144,20 @@ export default function OrdersPage() {
             {filteredOrders.map((order) => (
               <OrderCard key={order.id} order={order} />
             ))}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pt-4 border-t border-line">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={(newPage) => {
+                    setPage(newPage);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <EmptyState

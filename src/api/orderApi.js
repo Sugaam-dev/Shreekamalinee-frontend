@@ -72,13 +72,22 @@ export const orderApi = {
 
   // --- CUSTOMER ORDER STOREFRONT ---
 
-  // 8. Fetch logged-in user orders
-  getUserOrders: async () => {
-    const response = await apiClient.get("/api/v1/orders");
+  // 8. Fetch logged-in user orders (Supports pagination: page, size)
+  getUserOrders: async (params = {}) => {
+    const response = await apiClient.get("/api/v1/orders", { params });
     if (response.data && Array.isArray(response.data.content)) {
-      return response.data.content;
+      return response.data;
     }
-    return Array.isArray(response.data) ? response.data : [];
+    if (Array.isArray(response.data)) {
+      return {
+        content: response.data,
+        totalPages: 1,
+        totalElements: response.data.length,
+        number: 0,
+        size: response.data.length,
+      };
+    }
+    return response.data || { content: [], totalPages: 1, totalElements: 0, number: 0, size: 10 };
   },
 
   // 9. Fetch user order by ID

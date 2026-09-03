@@ -132,11 +132,11 @@ export function useCreateAdminManualOrderMutation() {
   });
 }
 
-// 7. Customer Storefront User Orders Query
-export function useUserOrdersQuery() {
+// 7. Customer Storefront User Orders Query (Supports pagination)
+export function useUserOrdersQuery(params = { page: 0, size: 10 }) {
   return useQuery({
-    queryKey: ORDER_KEYS.userList,
-    queryFn: orderApi.getUserOrders,
+    queryKey: ["orders", "user", params],
+    queryFn: () => orderApi.getUserOrders(params),
     staleTime: 1000 * 5, // 5 seconds
     refetchInterval: 10000, // 10s auto-refresh for order status
     refetchOnWindowFocus: true,
