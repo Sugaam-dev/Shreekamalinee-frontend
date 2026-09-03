@@ -18,7 +18,7 @@ import { formatCurrency } from "../../utils/formatters.js";
 import { useCreateAdminManualOrderMutation } from "../../queries/useOrderQueries.js";
 import { useProductsQuery } from "../../queries/useProductQueries.js";
 import { useCustomersQuery } from "../../queries/useCustomerQueries.js";
-import { useSystemEnumsQuery } from "../../queries/useSettingsQueries.js";
+import { useSystemEnumsQuery, useAdminSettingsQuery } from "../../queries/useSettingsQueries.js";
 import couponApi from "../../api/couponApi.js";
 import { useCart } from "../../context/CartContext.jsx";
 import AdminLayout from "../../components/admin/AdminLayout.jsx";
@@ -32,6 +32,7 @@ export default function AdminCreateOrderPage() {
   const { data: catalogProducts = [] } = useProductsQuery();
   const { data: customerList = [] } = useCustomersQuery();
   const { data: systemEnums } = useSystemEnumsQuery();
+  const { data: storeSettings } = useAdminSettingsQuery();
   const createManualOrderMutation = useCreateAdminManualOrderMutation();
 
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
@@ -63,6 +64,14 @@ export default function AdminCreateOrderPage() {
     message: "",
     error: "",
   });
+
+  // Dynamic Shipping & COD Calculations from Store Settings
+  const freeShippingThreshold = storeSettings?.freeShippingThreshold != null ? Number(storeSettings.freeShippingThreshold) : 1499;
+  const standardShippingFee = storeSettings?.standardShippingFee != null ? Number(storeSettings.standardShippingFee) : 99;
+  const isFreeShippingPromoActive = Boolean(storeSettings?.isFreeShippingPromoActive);
+
+  const codHandlingFeeSetting = storeSettings?.codHandlingFee != null ? Number(storeSettings.codHandlingFee) : 99;
+  const freeCodThreshold = storeSettings?.freeCodThreshold != null ? Number(storeSettings.freeCodThreshold) : 2999;
 
   const adminPaymentMethods = useMemo(() => {
     if (systemEnums?.adminPaymentMethods && Array.isArray(systemEnums.adminPaymentMethods)) {
@@ -138,9 +147,23 @@ export default function AdminCreateOrderPage() {
     return unitPrice * (Number(form.quantity) || 1);
   }, [unitPrice, form.quantity]);
 
+  const shippingFee = useMemo(() => {
+    if (isFreeShippingPromoActive || subtotal >= freeShippingThreshold || subtotal === 0) {
+      return 0;
+    }
+    return standardShippingFee;
+  }, [isFreeShippingPromoActive, subtotal, freeShippingThreshold, standardShippingFee]);
+
+  const codHandlingFee = useMemo(() => {
+    if (form.paymentMethod !== "COD") return 0;
+    if (subtotal >= freeCodThreshold || subtotal === 0) return 0;
+    return codHandlingFeeSetting;
+  }, [form.paymentMethod, subtotal, freeCodThreshold, codHandlingFeeSetting]);
+
   const netPayable = useMemo(() => {
-    return Math.max(0, subtotal - (couponValidationState.discount || 0));
-  }, [subtotal, couponValidationState.discount]);
+    const disc = couponValidationState.discount || 0;
+    return Math.max(0, subtotal - disc + shippingFee + codHandlingFee);
+  }, [subtotal, couponValidationState.discount, shippingFee, codHandlingFee]);
 
   const handleValidateCoupon = async () => {
     if (!form.couponCode?.trim()) {
@@ -617,8 +640,18 @@ export default function AdminCreateOrderPage() {
                   )}
                   <div className="flex justify-between text-gray-600">
                     <span>Insured Delivery & Courier Packaging:</span>
-                    <span className="font-semibold text-emerald-800">FREE</span>
+                    <span className={`font-semibold font-mono ${shippingFee === 0 ? "text-emerald-800" : "text-gray-900"}`}>
+                      {shippingFee === 0 ? "FREE" : formatCurrency(shippingFee)}
+                    </span>
                   </div>
+                  {form.paymentMethod === "COD" && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Cash On Delivery (COD) Handling Fee:</span>
+                      <span className={`font-semibold font-mono ${codHandlingFee === 0 ? "text-emerald-800" : "text-amber-800"}`}>
+                        {codHandlingFee === 0 ? "FREE" : formatCurrency(codHandlingFee)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-base font-bold text-[#800020] border-t border-[#E6DFD3] pt-3">
                     <span>Grand Total Payable:</span>
                     <span className="font-mono text-lg">{formatCurrency(netPayable)}</span>

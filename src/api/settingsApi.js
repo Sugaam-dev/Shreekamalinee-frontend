@@ -1,8 +1,14 @@
 import apiClient from "./client.js";
 
 export const settingsApi = {
-  // 1. Fetch current Store & Banking Configuration
-  getBankDetails: async () => {
+  // 1. Fetch complete Store & Banking Configuration (Admin Protected)
+  getAdminSettings: async () => {
+    const response = await apiClient.get("/api/v1/admin/settings");
+    return response.data;
+  },
+
+  // 1b. Fetch public Storefront Configuration (Publicly Accessible)
+  getPublicSettings: async () => {
     const response = await apiClient.get("/api/v1/settings/public");
     return response.data;
   },
@@ -49,5 +55,3 @@ export const settingsApi = {
 };
 
 export default settingsApi;
-
-

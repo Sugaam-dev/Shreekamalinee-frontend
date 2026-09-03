@@ -89,18 +89,27 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        const storedRefreshToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem("shreekamalinee_refresh_token")
+            : null;
+
         const refreshResponse = await axios.post(
           `${API_BASE_URL}/api/v1/auth/refresh-token`,
-          {},
+          { refreshToken: storedRefreshToken },
           { withCredentials: true }
         );
 
-        const newToken = refreshResponse.data?.token;
-        if (newToken && typeof window !== "undefined") {
-          localStorage.setItem("shreekamalinee_token", newToken);
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          }
+        const newToken = refreshResponse.data?.token || refreshResponse.data?.accessToken;
+        const newRefreshToken = refreshResponse.data?.refreshToken;
+
+        if (typeof window !== "undefined") {
+          if (newToken) localStorage.setItem("shreekamalinee_token", newToken);
+          if (newRefreshToken) localStorage.setItem("shreekamalinee_refresh_token", newRefreshToken);
+        }
+
+        if (newToken && originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
         }
 
         processQueue(null, newToken);
@@ -109,6 +118,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null);
         if (typeof window !== "undefined") {
           localStorage.removeItem("shreekamalinee_token");
+          localStorage.removeItem("shreekamalinee_refresh_token");
           localStorage.removeItem("shreekamalinee_user_cache");
           window.dispatchEvent(new CustomEvent("auth:session-expired"));
         }

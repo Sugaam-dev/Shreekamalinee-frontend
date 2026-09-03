@@ -179,8 +179,11 @@ export default function AdminOrderDetailsPage() {
           size="sm"
           icon={Download}
           onClick={() => generateTaxInvoice(order, storeSettings)}
+          title="Download Tax Invoice PDF"
+          className="px-2.5 sm:px-3 text-xs"
         >
-          Download Tax Invoice (PDF)
+          <span className="hidden sm:inline">Download Tax Invoice (PDF)</span>
+          <span className="sm:hidden">Invoice PDF</span>
         </Button>
       }
     >

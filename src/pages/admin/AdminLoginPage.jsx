@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
 import { loginSchema } from "../../schemas/authSchemas.js";
 import { useLoginMutation } from "../../queries/useAuthQueries.js";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -152,14 +152,10 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          <div className="pt-2 border-t border-[#E5E7EB] flex items-center justify-between text-xs text-[#212529]/60">
-            <Link to="/" className="hover:text-[#800020] transition-colors">
+          <div className="pt-3 border-t border-[#E5E7EB] text-center text-xs text-[#212529]/60">
+            <Link to="/" className="hover:text-[#800020] transition-colors font-medium">
               ← Return to Live Storefront
             </Link>
-            <span className="flex items-center gap-1 text-[10.5px]">
-              <ShieldCheck size={13} className="text-[#B8860B]" />
-              <span>Spring Boot JWT Secured</span>
-            </span>
           </div>
         </div>
       </div>

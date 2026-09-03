@@ -215,8 +215,16 @@ export default function AdminOrdersPage() {
       subtitle="Verify customer payments, audit UPI proof submissions, and manage courier dispatch"
       actions={
         <Link to="/admin/orders/new">
-          <Button type="button" variant="primary" size="sm" icon={Plus}>
-            Book WhatsApp / Offline Order
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            title="Book Concierge / WhatsApp Order"
+            className="px-2.5 sm:px-3 text-xs"
+          >
+            <span className="hidden sm:inline">Book WhatsApp / Offline Order</span>
+            <span className="sm:hidden">New Order</span>
           </Button>
         </Link>
       }

@@ -22,7 +22,7 @@ import {
   bankDetailsSchema,
 } from "../../schemas/settingsSchemas.js";
 import {
-  useBankDetailsQuery,
+  useAdminSettingsQuery,
   useUpdateShippingSettingsMutation,
   useUpdateAnnouncementSettingsMutation,
   useUpdateContactSettingsMutation,
@@ -36,7 +36,7 @@ import { validateImageFile, ACCEPT_IMAGE_STRING } from "../../utils/fileValidati
 
 export default function AdminSettingsPage() {
   const { showToast } = useCart();
-  const { data: storeSettings, isLoading } = useBankDetailsQuery();
+  const { data: storeSettings, isLoading } = useAdminSettingsQuery();
 
   // Mutations
   const updateShippingMutation = useUpdateShippingSettingsMutation();

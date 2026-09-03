@@ -48,7 +48,10 @@ export default function AdminDashboardPage() {
       return Number(stats.totalRevenue);
     }
     return orderList
-      .filter((o) => o.paymentStatus === "PAID")
+      .filter((o) => {
+        const ps = (o.paymentStatus || "").toUpperCase();
+        return ps === "PAID" || ps === "COMPLETED" || ps === "SUCCESS" || ps === "CAPTURED";
+      })
       .reduce((acc, curr) => acc + (Number(curr.finalAmount) || Number(curr.totalAmount) || 0), 0);
   }, [stats?.totalRevenue, orderList]);
 

@@ -343,32 +343,35 @@ export default function AdminLayout({ children, title, subtitle, actions }) {
         }`}
       >
         {/* Top Sticky Header */}
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-xs border-b border-[#E5E7EB] px-3 xs:px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3.5 min-w-0">
-            {/* Mobile Hamburger Button */}
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-xs border-b border-[#E5E7EB] px-2.5 xs:px-4 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+            {/* Mobile Hamburger Button - Guaranteed visible on mobile */}
             <button
+              type="button"
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-1.5 xs:p-2 text-[#212529] hover:bg-[#F4EEE3] rounded-xs cursor-pointer transition-colors"
+              className="lg:hidden p-1.5 xs:p-2 text-[#212529] hover:bg-[#F4EEE3] rounded-xs cursor-pointer transition-colors shrink-0 flex items-center justify-center border border-gray-200/80 bg-gray-50/80 shadow-2xs"
               aria-label="Open navigation drawer"
+              title="Open Navigation Menu"
             >
-              <Menu size={19} />
+              <Menu size={19} className="text-[#212529] shrink-0" />
             </button>
 
             {/* Desktop Sidebar Collapse Toggle */}
             <button
+              type="button"
               onClick={toggleCollapse}
-              className="hidden lg:flex p-2 text-gray-600 hover:text-[#800020] hover:bg-[#F4EEE3] rounded-xs cursor-pointer transition-colors"
+              className="hidden lg:flex p-2 text-gray-600 hover:text-[#800020] hover:bg-[#F4EEE3] rounded-xs cursor-pointer transition-colors shrink-0"
               title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
               aria-label="Toggle sidebar collapse"
             >
               {isCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
             </button>
 
-            <div className="min-w-0">
-              <h1 className="font-serif font-bold text-sm xs:text-base sm:text-lg md:text-xl 3xl:text-2xl 4k:text-3xl text-[#212529] truncate">
+            <div className="min-w-0 flex-1">
+              <h1 className="font-serif font-bold text-xs xs:text-sm sm:text-lg md:text-xl 3xl:text-2xl 4k:text-3xl text-[#212529] truncate">
                 {title || "Admin Dashboard"}
               </h1>
-              {subtitle && <p className="text-[10px] xs:text-[11px] 4k:text-xs text-[#212529]/60 truncate hidden sm:block">{subtitle}</p>}
+              {subtitle && <p className="text-[10px] xs:text-[11px] 4k:text-xs text-[#212529]/60 truncate hidden md:block">{subtitle}</p>}
             </div>
           </div>
 

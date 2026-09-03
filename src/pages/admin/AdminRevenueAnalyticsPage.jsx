@@ -18,6 +18,10 @@ import {
   Receipt,
   Sparkles,
   Info,
+  Activity,
+  Layers,
+  Zap,
+  Upload,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "../../utils/formatters.js";
 import { useAdminOrdersQuery } from "../../queries/useOrderQueries.js";
@@ -45,39 +49,49 @@ export default function AdminRevenueAnalyticsPage() {
       const s = formatToDateInput(today);
       return { start: s, end: s };
     }
-    if (preset === "WEEK") {
+    if (preset === "1W" || preset === "WEEK") {
       const weekStart = new Date(today);
-      const day = today.getDay(); // 0 is Sunday
-      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday
-      weekStart.setDate(diff);
+      weekStart.setDate(today.getDate() - 7);
       return { start: formatToDateInput(weekStart), end: formatToDateInput(today) };
     }
-    if (preset === "THIS_MONTH") {
+    if (preset === "1M" || preset === "THIS_MONTH") {
       const monthStart = new Date(y, m, 1);
-      const monthEnd = new Date(y, m + 1, 0); // Exact last day (28, 29, 30, 31)
+      const monthEnd = new Date(y, m + 1, 0);
       return { start: formatToDateInput(monthStart), end: formatToDateInput(monthEnd) };
+    }
+    if (preset === "3M") {
+      const threeMonths = new Date(today);
+      threeMonths.setMonth(today.getMonth() - 3);
+      return { start: formatToDateInput(threeMonths), end: formatToDateInput(today) };
+    }
+    if (preset === "6M") {
+      const sixMonths = new Date(today);
+      sixMonths.setMonth(today.getMonth() - 6);
+      return { start: formatToDateInput(sixMonths), end: formatToDateInput(today) };
     }
     if (preset === "LAST_MONTH") {
       const lastMonthStart = new Date(y, m - 1, 1);
       const lastMonthEnd = new Date(y, m, 0);
       return { start: formatToDateInput(lastMonthStart), end: formatToDateInput(lastMonthEnd) };
     }
-    if (preset === "YEAR") {
-      const yearStart = new Date(y, 0, 1);
-      const yearEnd = new Date(y, 11, 31);
-      return { start: formatToDateInput(yearStart), end: formatToDateInput(yearEnd) };
+    if (preset === "1Y" || preset === "YEAR") {
+      const yearStart = new Date(today);
+      yearStart.setFullYear(today.getFullYear() - 1);
+      return { start: formatToDateInput(yearStart), end: formatToDateInput(today) };
     }
     // ALL TIME (past 3 years to today)
     const allStart = new Date(y - 2, 0, 1);
     return { start: formatToDateInput(allStart), end: formatToDateInput(today) };
   };
 
-  const initialRange = getPresetRange("THIS_MONTH");
-  const [activePreset, setActivePreset] = useState("THIS_MONTH");
+  const initialRange = getPresetRange("6M");
+  const [activePreset, setActivePreset] = useState("6M");
   const [startDate, setStartDate] = useState(initialRange.start);
   const [endDate, setEndDate] = useState(initialRange.end);
   const [channelFilter, setChannelFilter] = useState("ALL");
   const [activeHoverIndex, setActiveHoverIndex] = useState(null);
+  const [chartViewMode, setChartViewMode] = useState("AREA");
+  const chartContainerRef = useRef(null);
 
   // Exact calendar days count
   const totalCalendarDays = useMemo(() => {
@@ -122,10 +136,27 @@ export default function AdminRevenueAnalyticsPage() {
     });
   }, [orderList, startDate, endDate, channelFilter]);
 
-  // Executive Metrics
+  // Helper to determine if an order payment is settled & approved
+  const isOrderSettled = (o) => {
+    const ps = (o?.paymentStatus || "").toUpperCase();
+    return ps === "COMPLETED" || ps === "PAID" || ps === "SUCCESS" || ps === "CAPTURED";
+  };
+
+  const isOrderAwaitingApproval = (o) => {
+    const ps = (o?.paymentStatus || "").toUpperCase();
+    const os = (o?.status || o?.orderStatus || "").toUpperCase();
+    return (
+      ps === "PENDING" ||
+      ps === "PAYMENT_PROOF_SUBMITTED" ||
+      ps === "UNDER_REVIEW" ||
+      os === "PAYMENT_PROOF_SUBMITTED"
+    );
+  };
+
+  // Executive Metrics (Strictly Separates Realized Money from Pending Pipeline)
   const metrics = useMemo(() => {
-    let grossRevenue = 0;
-    let netRealizedRevenue = 0;
+    let grossRevenue = 0; // Realized / Approved Revenue
+    let pendingVerificationRevenue = 0; // In-pipeline awaiting admin approval
     let totalDiscount = 0;
     let totalShippingCollected = 0;
     let totalCodCollected = 0;
@@ -145,39 +176,41 @@ export default function AdminRevenueAnalyticsPage() {
       const ship = Number(o.shippingFee) || 0;
       const cod = Number(o.codHandlingFee) || 0;
 
-      grossRevenue += amt;
       totalDiscount += disc;
       totalShippingCollected += ship;
       totalCodCollected += cod;
 
-      if (o.paymentStatus === "PAID") {
-        netRealizedRevenue += amt;
+      if (isOrderSettled(o)) {
+        grossRevenue += amt;
         paidOrdersCount++;
-      } else {
-        pendingOrdersCount++;
-      }
 
-      const pm = (o.paymentMethod || "").toUpperCase();
-      if (pm.includes("RAZORPAY") || pm.includes("ONLINE")) {
-        channelTotals.RAZORPAY += amt;
-      } else if (pm.includes("WHATSAPP") || pm.includes("UPI") || pm.includes("MANUAL")) {
-        channelTotals.WHATSAPP_UPI += amt;
-      } else if (pm.includes("BANK") || pm.includes("NEFT")) {
-        channelTotals.DIRECT_BANK += amt;
-      } else if (pm.includes("COD")) {
-        channelTotals.COD += amt;
+        const pm = (o.paymentMethod || "").toUpperCase();
+        if (pm.includes("RAZORPAY") || pm.includes("ONLINE")) {
+          channelTotals.RAZORPAY += amt;
+        } else if (pm.includes("WHATSAPP") || pm.includes("UPI") || pm.includes("MANUAL")) {
+          channelTotals.WHATSAPP_UPI += amt;
+        } else if (pm.includes("BANK") || pm.includes("NEFT")) {
+          channelTotals.DIRECT_BANK += amt;
+        } else if (pm.includes("COD")) {
+          channelTotals.COD += amt;
+        } else {
+          channelTotals.WHATSAPP_UPI += amt;
+        }
       } else {
-        channelTotals.WHATSAPP_UPI += amt;
+        pendingVerificationRevenue += amt;
+        pendingOrdersCount++;
       }
     });
 
     const totalOrdersCount = filteredOrders.length;
-    const avgOrderValue = paidOrdersCount > 0 ? netRealizedRevenue / paidOrdersCount : (totalOrdersCount > 0 ? grossRevenue / totalOrdersCount : 0);
-    const collectionEfficiency = grossRevenue > 0 ? (netRealizedRevenue / grossRevenue) * 100 : 100;
+    const avgOrderValue = paidOrdersCount > 0 ? grossRevenue / paidOrdersCount : 0;
+    const totalAttemptedVolume = grossRevenue + pendingVerificationRevenue;
+    const collectionEfficiency = totalAttemptedVolume > 0 ? (grossRevenue / totalAttemptedVolume) * 100 : 100;
 
     return {
       grossRevenue,
-      netRealizedRevenue,
+      netRealizedRevenue: grossRevenue,
+      pendingVerificationRevenue,
       totalDiscount,
       totalShippingCollected,
       totalCodCollected,
@@ -190,7 +223,7 @@ export default function AdminRevenueAnalyticsPage() {
     };
   }, [filteredOrders]);
 
-  // Periodic Chart Data Points Builder (Dynamic by Calendar Span)
+  // Periodic Chart Data Points Builder (Only counts COMPLETED/PAID for Gross Income)
   const chartData = useMemo(() => {
     const points = [];
     const s = new Date(`${startDate}T00:00:00`);
@@ -201,21 +234,30 @@ export default function AdminRevenueAnalyticsPage() {
       // 24-Hour blocks
       for (let h = 0; h < 24; h += 4) {
         const label = `${h.toString().padStart(2, "0")}:00`;
-        const rev = filteredOrders
-          .filter((o) => {
-            const d = new Date(o.createdAt);
-            return d.getHours() >= h && d.getHours() < h + 4;
-          })
+        const intervalOrders = filteredOrders.filter((o) => {
+          const d = new Date(o.createdAt);
+          return d.getHours() >= h && d.getHours() < h + 4;
+        });
+
+        const rev = intervalOrders
+          .filter(isOrderSettled)
           .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
+        const pendingRev = intervalOrders
+          .filter(isOrderAwaitingApproval)
+          .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
         points.push({
           label,
           fullLabel: `${label} – ${(h + 4).toString().padStart(2, "0")}:00`,
           value: rev,
-          count: filteredOrders.filter((o) => new Date(o.createdAt).getHours() >= h && new Date(o.createdAt).getHours() < h + 4).length,
+          pendingValue: pendingRev,
+          count: intervalOrders.filter(isOrderSettled).length,
+          totalCount: intervalOrders.length,
         });
       }
     } else if (days <= 14) {
-      // Day-by-Day individual bars
+      // Day-by-Day individual intervals
       for (let i = 0; i < days; i++) {
         const curDate = new Date(s);
         curDate.setDate(s.getDate() + i);
@@ -224,12 +266,22 @@ export default function AdminRevenueAnalyticsPage() {
         const dayName = curDate.toLocaleDateString("en-IN", { weekday: "short" });
         const dateStr = curDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
         const dayOrders = filteredOrders.filter((o) => (o.createdAt || "").startsWith(dateKey));
-        const rev = dayOrders.reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
+        const rev = dayOrders
+          .filter(isOrderSettled)
+          .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
+        const pendingRev = dayOrders
+          .filter(isOrderAwaitingApproval)
+          .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
         points.push({
           label: `${dayName} ${curDate.getDate()}`,
           fullLabel: `${dayName}, ${dateStr}`,
           value: rev,
-          count: dayOrders.length,
+          pendingValue: pendingRev,
+          count: dayOrders.filter(isOrderSettled).length,
+          totalCount: dayOrders.length,
         });
       }
     } else if (days <= 35) {
@@ -249,12 +301,22 @@ export default function AdminRevenueAnalyticsPage() {
           const od = new Date(o.createdAt);
           return od >= bStart && od <= (bEnd > e ? e : new Date(`${formatToDateInput(bEnd)}T23:59:59`));
         });
-        const rev = weekOrders.reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
+        const rev = weekOrders
+          .filter(isOrderSettled)
+          .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
+        const pendingRev = weekOrders
+          .filter(isOrderAwaitingApproval)
+          .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
         points.push({
           label: `Wk ${b + 1}`,
           fullLabel: `${bStartStr} – ${bEndStr}`,
           value: rev,
-          count: weekOrders.length,
+          pendingValue: pendingRev,
+          count: weekOrders.filter(isOrderSettled).length,
+          totalCount: weekOrders.length,
         });
       }
     } else {
@@ -275,17 +337,27 @@ export default function AdminRevenueAnalyticsPage() {
           const od = new Date(o.createdAt);
           return od >= curM && od <= monthEnd;
         });
-        const rev = mOrders.reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
+        const rev = mOrders
+          .filter(isOrderSettled)
+          .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
+        const pendingRev = mOrders
+          .filter(isOrderAwaitingApproval)
+          .reduce((acc, c) => acc + (Number(c.finalAmount) || Number(c.totalAmount) || 0), 0);
+
         points.push({
           label: mLabel,
           fullLabel: mFull,
           value: rev,
-          count: mOrders.length,
+          pendingValue: pendingRev,
+          count: mOrders.filter(isOrderSettled).length,
+          totalCount: mOrders.length,
         });
       }
     }
 
-    const maxValue = Math.max(...points.map((p) => p.value), 1000);
+    const maxValue = Math.max(...points.map((p) => Math.max(p.value, p.pendingValue || 0)), 1000);
     return { points, maxValue };
   }, [filteredOrders, startDate, endDate, totalCalendarDays]);
 
@@ -319,49 +391,173 @@ export default function AdminRevenueAnalyticsPage() {
     return Math.round((val / metrics.grossRevenue) * 100);
   };
 
-  // Generate smooth SVG Area Curve Path
+  const formatCompactCurrency = (val) => {
+    if (!val || val === 0) return "₹0";
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)}Cr`;
+    if (val >= 100000) {
+      const l = (val / 100000).toFixed(1);
+      return `₹${l.endsWith(".0") ? l.slice(0, -2) : l}L`;
+    }
+    if (val >= 1000) return `₹${Math.round(val / 1000)}K`;
+    return `₹${val}`;
+  };
+
+  const handleExportCsv = () => {
+    const headers = "Order ID,Order Date,Customer,Amount,Discount,Payment Method,Payment Status\n";
+    const rows = filteredOrders
+      .map(
+        (o) =>
+          `"${o.orderNumber || o.id}","${o.createdAt}","${(o.shippingAddress?.fullName || o.user?.fullName || "").replace(/"/g, '""')}","${o.finalAmount || o.totalAmount}","${o.discountAmount || 0}","${o.paymentMethod}","${o.paymentStatus}"`
+      )
+      .join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `shreekamalinee-revenue-${startDate}-to-${endDate}.csv`;
+    link.click();
+  };
+
+  // Peak Data point index
+  const peakIndex = useMemo(() => {
+    if (!chartData.points.length) return -1;
+    let maxIdx = -1;
+    let maxVal = 0;
+    chartData.points.forEach((pt, idx) => {
+      if (pt.value > maxVal) {
+        maxVal = pt.value;
+        maxIdx = idx;
+      }
+    });
+    return maxIdx;
+  }, [chartData.points]);
+
+  // Average Periodic Pace
+  const avgPeriodRevenue = useMemo(() => {
+    if (!chartData.points.length) return 0;
+    const total = chartData.points.reduce((acc, p) => acc + p.value, 0);
+    return Math.round(total / chartData.points.length);
+  }, [chartData.points]);
+
+  // Touch Move / Drag tracker for mobile devices
+  const handleTouchChart = (e) => {
+    if (!chartContainerRef.current || !chartData.points.length) return;
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const relativeX = touch.clientX - rect.left;
+    const fraction = Math.max(0, Math.min(1, relativeX / rect.width));
+    const index = Math.min(
+      chartData.points.length - 1,
+      Math.max(0, Math.round(fraction * (chartData.points.length - 1)))
+    );
+    setActiveHoverIndex(index);
+  };
+
+  // Generate smooth Monotone Cubic Spline Area Curve Path & Scaled Geometry
   const svgGraph = useMemo(() => {
     const pts = chartData.points;
-    if (pts.length === 0) return { linePath: "", areaPath: "", coords: [] };
+    if (pts.length === 0) return { width: 860, height: 260, linePath: "", areaPath: "", coords: [], yTicks: [] };
 
-    const width = 800;
-    const height = 200;
-    const paddingX = 40;
-    const paddingY = 20;
+    const width = 860;
+    const height = 260;
+    const paddingLeft = 60;
+    const paddingRight = 20;
+    const paddingTop = 25;
+    const paddingBottom = 35;
 
-    const innerW = width - paddingX * 2;
-    const innerH = height - paddingY * 2;
-    const maxVal = chartData.maxValue;
+    const innerW = width - paddingLeft - paddingRight;
+    const innerH = height - paddingTop - paddingBottom;
+    const maxVal = Math.max(chartData.maxValue, 1000);
+
+    const barWidth = Math.max(8, Math.min(28, innerW / Math.max(1, pts.length * 2.2)));
 
     const coords = pts.map((p, idx) => {
-      const x = paddingX + (idx / Math.max(1, pts.length - 1)) * innerW;
-      const y = height - paddingY - (p.value / maxVal) * innerH;
-      return { x, y, ...p };
+      const x = paddingLeft + (idx / Math.max(1, pts.length - 1)) * innerW;
+      const y = height - paddingBottom - (p.value / maxVal) * innerH;
+      const barH = Math.max(2, (p.value / maxVal) * innerH);
+      const barY = height - paddingBottom - barH;
+      const barX = x - barWidth / 2;
+      return { x, y, barX, barY, barW: barWidth, barH, ...p };
     });
+
+    // Reference style Y-Axis ticks ($200K, $150K, $100K, $50K, $0)
+    const yTicks = [
+      { ratio: 1, label: formatCompactCurrency(maxVal), y: paddingTop },
+      { ratio: 0.75, label: formatCompactCurrency(Math.round(maxVal * 0.75)), y: paddingTop + innerH * 0.25 },
+      { ratio: 0.5, label: formatCompactCurrency(Math.round(maxVal * 0.5)), y: paddingTop + innerH * 0.5 },
+      { ratio: 0.25, label: formatCompactCurrency(Math.round(maxVal * 0.25)), y: paddingTop + innerH * 0.75 },
+      { ratio: 0, label: "₹0", y: height - paddingBottom },
+    ];
 
     if (coords.length === 1) {
       const c = coords[0];
       return {
+        width,
+        height,
+        paddingLeft,
+        paddingRight,
+        paddingTop,
+        paddingBottom,
+        yTicks,
         linePath: `M ${c.x - 20} ${c.y} L ${c.x + 20} ${c.y}`,
-        areaPath: `M ${c.x - 20} ${height - paddingY} L ${c.x - 20} ${c.y} L ${c.x + 20} ${c.y} L ${c.x + 20} ${height - paddingY} Z`,
+        areaPath: `M ${c.x - 20} ${height - paddingBottom} L ${c.x - 20} ${c.y} L ${c.x + 20} ${c.y} L ${c.x + 20} ${height - paddingBottom} Z`,
         coords,
       };
     }
 
-    // Build Catmull-Rom or cubic spline
-    let linePath = `M ${coords[0].x} ${coords[0].y}`;
-    for (let i = 0; i < coords.length - 1; i++) {
-      const curr = coords[i];
-      const next = coords[i + 1];
-      const midX = (curr.x + next.x) / 2;
-      linePath += ` C ${midX} ${curr.y}, ${midX} ${next.y}, ${next.x} ${next.y}`;
+    // Monotone Cubic Spline (Fritsch-Carlson) - Mathematically true curve
+    // Only curves when real revenue changes occur; stays flat with 0 artificial wiggles when data is unchanged
+    const n = coords.length;
+    const dxs = [];
+    const dys = [];
+    const slopes = [];
+
+    for (let i = 0; i < n - 1; i++) {
+      const dx = coords[i + 1].x - coords[i].x;
+      const dy = coords[i + 1].y - coords[i].y;
+      dxs.push(dx);
+      dys.push(dy);
+      slopes.push(dx === 0 ? 0 : dy / dx);
+    }
+
+    const tangents = [slopes[0]];
+    for (let i = 0; i < n - 2; i++) {
+      const m0 = slopes[i];
+      const m1 = slopes[i + 1];
+      if (m0 * m1 <= 0 || coords[i].value === coords[i + 1].value) {
+        tangents.push(0); // Strictly flat on flat periods or local extrema
+      } else {
+        const dx0 = dxs[i];
+        const dx1 = dxs[i + 1];
+        const common = dx0 + dx1;
+        tangents.push((3 * common) / ((common + dx1) / m0 + (common + dx0) / m1));
+      }
+    }
+    tangents.push(slopes[n - 2]);
+
+    let linePath = `M ${coords[0].x.toFixed(2)} ${coords[0].y.toFixed(2)}`;
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = coords[i];
+      const p1 = coords[i + 1];
+      const dx = dxs[i];
+
+      // If data is identical between intervals (e.g. ₹0 to ₹0 or no change), draw a true flat line
+      if (p0.value === p1.value) {
+        linePath += ` L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`;
+      } else {
+        const cp1x = p0.x + dx / 3;
+        const cp1y = p0.y + (tangents[i] * dx) / 3;
+        const cp2x = p1.x - dx / 3;
+        const cp2y = p1.y - (tangents[i + 1] * dx) / 3;
+        linePath += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`;
+      }
     }
 
     const last = coords[coords.length - 1];
     const first = coords[0];
-    const areaPath = `${linePath} L ${last.x} ${height - paddingY} L ${first.x} ${height - paddingY} Z`;
+    const areaPath = `${linePath} L ${last.x.toFixed(2)} ${height - paddingBottom} L ${first.x.toFixed(2)} ${height - paddingBottom} Z`;
 
-    return { linePath, areaPath, coords };
+    return { width, height, paddingLeft, paddingRight, paddingTop, paddingBottom, yTicks, linePath, areaPath, coords };
   }, [chartData]);
 
   const activePoint = activeHoverIndex !== null ? chartData.points[activeHoverIndex] : null;
@@ -371,33 +567,29 @@ export default function AdminRevenueAnalyticsPage() {
       title="Financial & Revenue Intelligence"
       subtitle="Live revenue metrics, sales trends, channel distribution, and cashflow performance"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Link to="/admin/orders">
-            <Button variant="outline" size="sm" icon={ArrowLeft}>
-              Orders View
+            <Button
+              variant="outline"
+              size="sm"
+              icon={ArrowLeft}
+              title="Return to Orders"
+              className="px-2.5 sm:px-3"
+            >
+              <span className="hidden xs:inline">Orders</span>
             </Button>
           </Link>
           <Button
             variant="primary"
             size="sm"
             icon={Download}
-            onClick={() => {
-              const headers = "Order ID,Order Date,Customer,Amount,Discount,Payment Method,Payment Status\n";
-              const rows = filteredOrders
-                .map(
-                  (o) =>
-                    `"${o.orderNumber || o.id}","${o.createdAt}","${(o.shippingAddress?.fullName || o.user?.fullName || "").replace(/"/g, '""')}","${o.finalAmount || o.totalAmount}","${o.discountAmount || 0}","${o.paymentMethod}","${o.paymentStatus}"`
-                )
-                .join("\n");
-              const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = `shreekamalinee-revenue-${startDate}-to-${endDate}.csv`;
-              link.click();
-            }}
+            onClick={handleExportCsv}
+            title="Export Filtered Financial CSV"
+            className="px-2.5 sm:px-3"
           >
-            Export Financial CSV
+            <span className="hidden lg:inline">Export Financial CSV</span>
+            <span className="hidden xs:inline lg:hidden">Export CSV</span>
+            <span className="xs:hidden">Export</span>
           </Button>
         </div>
       }
@@ -591,171 +783,310 @@ export default function AdminRevenueAnalyticsPage() {
           </div>
         </div>
 
-        {/* Ultra-Smooth SVG Area & Velocity Chart + Channels Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main Visual Sales Chart (8 cols) */}
-          <div className="lg:col-span-8 bg-white border border-gray-200 rounded-xs p-6 shadow-xs space-y-4">
-            {/* Stable Header with Zero Layout Shift */}
-            <div className="flex items-start justify-between min-h-[48px]">
-              <div>
-                <h3 className="font-serif font-bold text-base text-gray-900 flex items-center gap-2">
-                  <BarChart3 size={18} className="text-[#800020]" />
-                  <span>
-                    Revenue Velocity Curve ({startDate} to {endDate})
-                  </span>
+        {/* Ultra-Smooth SVG Area Chart + Channels Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+          {/* Main Visual Sales Chart (8 cols) - Dark Obsidian Electric Blue Luxury Style */}
+          <div className="lg:col-span-8 bg-[#0D1117] border border-slate-800/90 rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-6 relative overflow-hidden">
+            {/* Ambient Background Glow Effect in Sapphire Blue */}
+            <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Top Header: Fully responsive on mobile and desktop */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-800/60 relative z-10">
+              {/* Row 1 on mobile: Title + Export Button */}
+              <div className="flex items-center justify-between w-full sm:w-auto">
+                <h3 className="text-white font-bold text-base sm:text-xl tracking-tight">
+                  Revenue Overview
                 </h3>
-                <p className="text-xs text-gray-500">
-                  Continuous revenue progression across {totalCalendarDays} calendar {totalCalendarDays === 1 ? "day" : "days"}
-                </p>
+
+                {/* Export Button (Mobile position) */}
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="sm:hidden flex items-center gap-1.5 text-slate-300 hover:text-white text-xs font-medium px-3 py-1.5 rounded-xl bg-[#161B22] hover:bg-[#21262D] border border-slate-800 transition-all shadow-xs cursor-pointer"
+                >
+                  <Upload size={12} className="text-slate-400" />
+                  <span>Export</span>
+                </button>
               </div>
 
-              {/* Reserved Tooltip Box to Prevent Jitter */}
-              <div className="h-10 flex items-center justify-end">
-                <div
-                  className={`bg-[#FAF7F2] border border-[#E6DFD3] px-3 py-1 rounded-xs text-right transition-opacity duration-150 shadow-2xs ${
-                    activePoint ? "opacity-100" : "opacity-0 pointer-events-none"
-                  }`}
-                >
-                  <span className="text-[10px] text-gray-500 font-bold block">
-                    {activePoint?.fullLabel || activePoint?.label || "—"}
-                  </span>
-                  <span className="font-serif font-bold text-xs text-[#800020] font-mono">
-                    {activePoint ? formatCurrency(activePoint.value) : "₹0"} ({activePoint?.count || 0} orders)
-                  </span>
+              {/* Row 2 on mobile / Right side on desktop: Horizon Tabs + Desktop Export */}
+              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                {/* Horizon Quick Filters: Full width 5-column grid on mobile, inline flex on desktop */}
+                <div className="grid grid-cols-5 sm:flex items-center bg-[#161B22] p-1 rounded-xl border border-slate-800 text-xs font-medium text-slate-400 w-full sm:w-auto">
+                  {["1W", "1M", "3M", "1Y", "6M"].map((p) => {
+                    const isSelected = activePreset === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => handleSelectPreset(p)}
+                        className={`text-center py-1 sm:px-3 rounded-lg transition-all text-xs cursor-pointer ${
+                          isSelected
+                            ? "bg-[#21262D] text-white font-semibold shadow-xs ring-1 ring-white/10"
+                            : "hover:text-slate-200 text-slate-400"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {/* Export Button (Desktop position) */}
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="hidden sm:flex items-center gap-1.5 text-slate-300 hover:text-white text-xs font-medium px-3.5 py-1.5 rounded-xl bg-[#161B22] hover:bg-[#21262D] border border-slate-800 transition-all shadow-xs cursor-pointer"
+                >
+                  <Upload size={13} className="text-slate-400" />
+                  <span>Export</span>
+                </button>
               </div>
             </div>
 
-            {/* Buttery Smooth SVG Curve + Bar Container */}
-            <div className="pt-2 pb-2">
+            {/* Chart Area with Floating White Tooltip & Smooth Spline */}
+            <div className="pt-1 sm:pt-2 pb-1 relative z-10">
               {chartData.points.length === 0 || chartData.points.every((p) => p.value === 0) ? (
-                <div className="h-64 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 rounded-xs border border-dashed border-gray-200">
-                  <BarChart3 size={32} className="text-gray-300 mb-2" />
-                  <p className="text-xs font-semibold">No transactions recorded in this specific date range.</p>
-                  <p className="text-[11px] text-gray-400">Switch horizon to "All Time" to view full lifetime data.</p>
+                <div className="h-56 sm:h-72 flex flex-col items-center justify-center text-slate-500 bg-[#161B22]/50 rounded-xl border border-dashed border-slate-800 p-6 text-center">
+                  <div className="w-12 h-12 rounded-full bg-slate-800/80 flex items-center justify-center mb-3 text-slate-400">
+                    <BarChart3 size={24} />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-300">No revenue data recorded for this horizon.</p>
+                  <p className="text-[11px] text-slate-500 mt-1">Select "6M" or "1Y" to analyze turnover flow.</p>
                 </div>
               ) : (
-                <div className="relative">
-                  {/* SVG Area Spline */}
-                  <div className="w-full h-56 relative overflow-hidden">
+                <div
+                  ref={chartContainerRef}
+                  onTouchStart={handleTouchChart}
+                  onTouchMove={handleTouchChart}
+                  onTouchEnd={() => setActiveHoverIndex(null)}
+                  style={{ touchAction: "pan-y" }}
+                  className="relative select-none"
+                >
+                  {/* Floating White Tooltip Card - Clamped for mobile screen edges */}
+                  {(() => {
+                    const activeIdx = activeHoverIndex !== null ? activeHoverIndex : (peakIndex !== -1 ? peakIndex : Math.max(0, chartData.points.length - 1));
+                    const point = chartData.points[activeIdx];
+                    const coord = svgGraph.coords[activeIdx];
+                    if (!coord || !point) return null;
+
+                    const prevPoint = activeIdx > 0 ? chartData.points[activeIdx - 1] : null;
+                    let trendText = "";
+                    let isPositive = true;
+
+                    if (prevPoint) {
+                      if (prevPoint.value > 0) {
+                        const diffPercent = Math.round(((point.value - prevPoint.value) / prevPoint.value) * 100);
+                        trendText = `${diffPercent >= 0 ? "+" : ""}${diffPercent}% vs prev`;
+                        isPositive = diffPercent >= 0;
+                      } else if (point.value > 0) {
+                        trendText = "+100% vs prev";
+                        isPositive = true;
+                      } else {
+                        trendText = "0% vs prev";
+                        isPositive = true;
+                      }
+                    } else {
+                      const share = metrics.grossRevenue > 0
+                        ? Math.round((point.value / metrics.grossRevenue) * 100)
+                        : 0;
+                      trendText = `${share}% of period`;
+                      isPositive = true;
+                    }
+
+                    return (
+                      <div
+                        style={{
+                          left: `${Math.max(18, Math.min(82, (coord.x / svgGraph.width) * 100))}%`,
+                          top: `${Math.max(4, (coord.y / svgGraph.height) * 100 - 16)}%`,
+                        }}
+                        className="absolute transform -translate-x-1/2 -translate-y-full pointer-events-none z-30 transition-all duration-150 max-w-[200px]"
+                      >
+                        <div className="bg-white text-gray-900 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl shadow-[0_10px_35px_-5px_rgba(0,0,0,0.5)] ring-1 ring-black/10 text-left">
+                          <div className="text-[10.5px] sm:text-[11px] text-gray-500 font-medium tracking-tight">
+                            {point.fullLabel || point.label}
+                          </div>
+                          <div className="text-xs sm:text-sm font-bold text-gray-900 mt-0.5 whitespace-nowrap">
+                            Revenue <span className="font-mono font-bold text-gray-950">{formatCurrency(point.value)}</span>
+                          </div>
+                          <div className="text-[10px] sm:text-[11px] font-bold mt-0.5 flex items-center gap-1.5 font-mono">
+                            <span className={isPositive ? "text-emerald-600" : "text-rose-600"}>
+                              {trendText}
+                            </span>
+                            <span className="text-gray-400 font-normal font-sans text-[9.5px]">
+                              ({point.count} {point.count === 1 ? "order" : "orders"})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Responsive SVG Canvas */}
+                  <div className="w-full h-52 sm:h-64 md:h-76 relative overflow-visible">
                     <svg
-                      viewBox="0 0 800 200"
+                      viewBox="0 0 860 260"
                       preserveAspectRatio="none"
                       className="w-full h-full overflow-visible"
                     >
                       <defs>
-                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#800020" stopOpacity="0.28" />
-                          <stop offset="100%" stopColor="#800020" stopOpacity="0.0" />
+                        {/* Reference Blue Gradient Area Fill */}
+                        <linearGradient id="refBlueAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#2563EB" stopOpacity="0.65" />
+                          <stop offset="35%" stopColor="#3B82F6" stopOpacity="0.35" />
+                          <stop offset="75%" stopColor="#1E40AF" stopOpacity="0.10" />
+                          <stop offset="100%" stopColor="#0D1117" stopOpacity="0.0" />
                         </linearGradient>
+
+                        {/* Spline Stroke Gradient */}
+                        <linearGradient id="refBlueStrokeGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#60A5FA" />
+                          <stop offset="50%" stopColor="#3B82F6" />
+                          <stop offset="100%" stopColor="#93C5FD" />
+                        </linearGradient>
+
+                        {/* Glow Filter */}
+                        <filter id="refBlueGlow" x="-20%" y="-20%" width="140%" height="140%">
+                          <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#3B82F6" floodOpacity="0.45" />
+                        </filter>
                       </defs>
 
-                      {/* Subtle Horizontal Gridlines */}
-                      <line x1="40" y1="20" x2="760" y2="20" stroke="#f1f1f1" strokeDasharray="3 3" strokeWidth="1" />
-                      <line x1="40" y1="90" x2="760" y2="90" stroke="#f1f1f1" strokeDasharray="3 3" strokeWidth="1" />
-                      <line x1="40" y1="160" x2="760" y2="160" stroke="#f1f1f1" strokeDasharray="3 3" strokeWidth="1" />
+                      {/* Reference Horizontal Gridlines & Y-Axis Scale */}
+                      {svgGraph.yTicks?.map((tick, idx) => (
+                        <g key={idx} className="transition-all duration-200">
+                          <line
+                            x1={svgGraph.paddingLeft}
+                            y1={tick.y}
+                            x2={svgGraph.width - svgGraph.paddingRight}
+                            y2={tick.y}
+                            stroke="#21262D"
+                            strokeWidth="1"
+                          />
+                          <text
+                            x={svgGraph.paddingLeft - 8}
+                            y={tick.y + 3.5}
+                            textAnchor="end"
+                            className="text-[11px] fill-slate-400 font-mono font-medium"
+                          >
+                            {tick.label}
+                          </text>
+                        </g>
+                      ))}
 
-                      {/* Gradient Area */}
+                      {/* Gradient Area Spline */}
                       {svgGraph.areaPath && (
                         <path
                           d={svgGraph.areaPath}
-                          fill="url(#areaGradient)"
+                          fill="url(#refBlueAreaGradient)"
                           className="transition-all duration-300 ease-out"
                         />
                       )}
 
-                      {/* Spline Line */}
+                      {/* Spline Stroke Line */}
                       {svgGraph.linePath && (
                         <path
                           d={svgGraph.linePath}
                           fill="none"
-                          stroke="#800020"
-                          strokeWidth="2.5"
+                          stroke="url(#refBlueStrokeGradient)"
+                          strokeWidth="3.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
+                          filter="url(#refBlueGlow)"
                           className="transition-all duration-300 ease-out"
                         />
                       )}
 
-                      {/* Active Circle Point */}
-                      {activeHoverIndex !== null && svgGraph.coords[activeHoverIndex] && (
-                        <g>
-                          <circle
-                            cx={svgGraph.coords[activeHoverIndex].x}
-                            cy={svgGraph.coords[activeHoverIndex].y}
-                            r="6"
-                            fill="#800020"
-                            stroke="#ffffff"
-                            strokeWidth="2"
-                          />
-                          <line
-                            x1={svgGraph.coords[activeHoverIndex].x}
-                            y1={svgGraph.coords[activeHoverIndex].y}
-                            x2={svgGraph.coords[activeHoverIndex].x}
-                            y2="180"
-                            stroke="#800020"
-                            strokeWidth="1"
-                            strokeDasharray="2 2"
-                            opacity="0.6"
-                          />
-                        </g>
-                      )}
+                      {/* Active Pinpoint Node on Curve */}
+                      {(() => {
+                        const activeIdx = activeHoverIndex !== null ? activeHoverIndex : (peakIndex !== -1 ? peakIndex : Math.max(0, chartData.points.length - 1));
+                        const coord = svgGraph.coords[activeIdx];
+                        if (!coord) return null;
+
+                        return (
+                          <g className="transition-all duration-150">
+                            {/* Outer Halo */}
+                            <circle
+                              cx={coord.x}
+                              cy={coord.y}
+                              r="10"
+                              fill="#3B82F6"
+                              opacity="0.35"
+                              className="animate-pulse"
+                            />
+                            {/* Inner Node */}
+                            <circle
+                              cx={coord.x}
+                              cy={coord.y}
+                              r="5"
+                              fill="#ffffff"
+                              stroke="#2563EB"
+                              strokeWidth="2.5"
+                            />
+                          </g>
+                        );
+                      })()}
                     </svg>
 
-                    {/* Interactive Column Hover Zones (Zero Jerk Layer) */}
-                    <div className="absolute inset-0 flex items-stretch px-6">
+                    {/* Interactive Column Hover & Touch Scrub Zones */}
+                    <div
+                      style={{
+                        left: `${(svgGraph.paddingLeft / svgGraph.width) * 100}%`,
+                        right: `${(svgGraph.paddingRight / svgGraph.width) * 100}%`,
+                      }}
+                      className="absolute inset-y-0 flex items-stretch"
+                    >
                       {chartData.points.map((pt, idx) => (
                         <div
                           key={idx}
                           onMouseEnter={() => setActiveHoverIndex(idx)}
                           onMouseLeave={() => setActiveHoverIndex(null)}
-                          className="flex-1 flex flex-col justify-end items-center cursor-pointer group"
+                          onClick={() => setActiveHoverIndex(idx)}
+                          className="flex-1 flex flex-col justify-end items-center cursor-pointer group relative"
                         >
-                          {/* Smooth Light Pillar on Hover */}
-                          <div
-                            className={`w-full max-w-[36px] h-full rounded-t-xs transition-colors duration-150 ${
-                              activeHoverIndex === idx ? "bg-[#800020]/10" : "bg-transparent"
-                            }`}
-                          />
+                          <div className="w-full h-full bg-transparent" />
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* X-Axis Labels */}
-                  <div className="flex justify-between gap-2 px-6 pt-2 border-t border-gray-100">
-                    {chartData.points.map((pt, idx) => (
-                      <div
-                        key={idx}
-                        className={`flex-1 text-center truncate transition-colors duration-150 ${
-                          activeHoverIndex === idx ? "text-[#800020] font-bold" : "text-gray-500 font-semibold"
-                        }`}
-                      >
-                        <span className="text-[10px] uppercase font-mono block">
-                          {pt.label}
-                        </span>
-                      </div>
-                    ))}
+                  {/* Responsive X-Axis Labels (Jan, Feb, Mar, Apr, May, Jun, etc.) */}
+                  <div
+                    style={{
+                      paddingLeft: `${(svgGraph.paddingLeft / svgGraph.width) * 100}%`,
+                      paddingRight: `${(svgGraph.paddingRight / svgGraph.width) * 100}%`,
+                    }}
+                    className="flex justify-between gap-1 pt-2.5 sm:pt-3 border-t border-slate-800/80 overflow-x-hidden"
+                  >
+                    {chartData.points.map((pt, idx) => {
+                      const activeIdx = activeHoverIndex !== null ? activeHoverIndex : (peakIndex !== -1 ? peakIndex : Math.max(0, chartData.points.length - 1));
+                      const isHovered = activeIdx === idx;
+                      const count = chartData.points.length;
+                      
+                      // On mobile (<640px), keep only 4 to 6 evenly spaced labels so they never collide
+                      const skipStep = count > 12 ? 3 : count > 6 ? 2 : 1;
+                      const hideOnMobile = count > 5 && idx % skipStep !== 0 && !isHovered && idx !== count - 1 && idx !== 0;
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => setActiveHoverIndex(idx)}
+                          className={`flex-1 text-center truncate transition-all duration-150 cursor-pointer ${
+                            hideOnMobile ? "hidden sm:block" : "block"
+                          } ${
+                            isHovered
+                              ? "text-white font-bold scale-105"
+                              : "text-slate-400 font-medium hover:text-slate-200"
+                          }`}
+                        >
+                          <span className="text-[10px] sm:text-xs font-mono block tracking-tight">
+                            {pt.label}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Quick Chart Legend */}
-            <div className="flex items-center justify-between text-xs pt-3 border-t border-gray-100 text-gray-500">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#800020]" />
-                  <span>Realized Sales Curve</span>
-                </span>
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="w-2.5 h-2.5 rounded-xs bg-[#800020]/20" />
-                  <span>Volume Area</span>
-                </span>
-              </div>
-              <span className="text-[11px] font-mono font-semibold text-gray-700">
-                Peak Period Volume: {formatCurrency(chartData.maxValue)}
-              </span>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { useCurrentUserQuery, useLogoutMutation } from "../queries/useAuthQueries.js";
-import authApi from "../api/authApi.js";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUserQuery, useLogoutMutation, AUTH_KEYS } from "../queries/useAuthQueries.js";
 
 const AuthContext = createContext(null);
 
@@ -28,6 +28,8 @@ const setCachedUser = (userData) => {
 };
 
 export function AuthProvider({ children }) {
+  const queryClient = useQueryClient();
+
   // 1. Synchronously initialize from localStorage cache for instant 0ms rendering
   const [localUser, setLocalUser] = useState(() => getCachedUser());
 
@@ -41,9 +43,11 @@ export function AuthProvider({ children }) {
       setLocalUser(serverUser);
       setCachedUser(serverUser);
     } else if (isServerFetched && serverUser === null) {
-      // Server explicitly verified session is unauthenticated
-      setLocalUser(null);
-      setCachedUser(null);
+      const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("shreekamalinee_token"));
+      if (!hasToken) {
+        setLocalUser(null);
+        setCachedUser(null);
+      }
     }
   }, [serverUser, isServerFetched]);
 
@@ -64,17 +68,25 @@ export function AuthProvider({ children }) {
     if (userData?.token) {
       localStorage.setItem("shreekamalinee_token", userData.token);
     }
+    if (userData?.refreshToken) {
+      localStorage.setItem("shreekamalinee_refresh_token", userData.refreshToken);
+    }
     setLocalUser(userData);
     setCachedUser(userData);
+    if (userData) {
+      queryClient.setQueryData(AUTH_KEYS.currentUser, userData);
+    }
     refetchUser();
-  }, [refetchUser]);
+  }, [queryClient, refetchUser]);
 
-  // Immediate Auto-Logout on Session Expiry
+  // Immediate Auto-Logout on Session Expiry (Only when 7-day refresh token also expires)
   useEffect(() => {
     const handleSessionExpired = () => {
       setLocalUser(null);
       setCachedUser(null);
+      queryClient.setQueryData(AUTH_KEYS.currentUser, null);
       localStorage.removeItem("shreekamalinee_token");
+      localStorage.removeItem("shreekamalinee_refresh_token");
       localStorage.removeItem("shreekamalinee_guest_cart");
       localStorage.removeItem("shreekamalinee_guest_wishlist");
       if (typeof window !== "undefined") {
@@ -95,7 +107,7 @@ export function AuthProvider({ children }) {
 
     window.addEventListener("auth:session-expired", handleSessionExpired);
     return () => window.removeEventListener("auth:session-expired", handleSessionExpired);
-  }, []);
+  }, [queryClient]);
 
   // Manual Logout action
   const logout = useCallback(async () => {
@@ -106,15 +118,13 @@ export function AuthProvider({ children }) {
     } finally {
       setLocalUser(null);
       setCachedUser(null);
+      queryClient.setQueryData(AUTH_KEYS.currentUser, null);
       localStorage.removeItem("shreekamalinee_token");
+      localStorage.removeItem("shreekamalinee_refresh_token");
       localStorage.removeItem("shreekamalinee_guest_cart");
       localStorage.removeItem("shreekamalinee_guest_wishlist");
     }
-  }, [logoutMutation]);
-
-
-
-
+  }, [logoutMutation, queryClient]);
 
   const value = useMemo(
     () => ({
@@ -145,12 +155,11 @@ export function useAuth() {
       isAuthenticated: false,
       isLoading: false,
       setUserSession: () => {},
-      refetchUser: async () => {},
+      refetchUser: () => {},
       logout: async () => {},
     };
   }
   return context;
 }
-
 
 export default AuthContext;
